@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HD Avatar</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:           #FFFFFF;
+      --bg-sub:       #F4F4F4;
+      --surface:      #FFFFFF;
+      --border:       #E5E5E5;
+      --border-mid:   #D4D4D4;
+      --text:         #0A0A0A;
+      --text-2:       #525252;
+      --text-3:       #A3A3A3;
+      --accent:       #0A0A0A;
+      --accent-text:  #FFFFFF;
+      --accent-hover: #262626;
+    }
+
+    [data-theme="dark"] {
+      --bg:           #0A0A0A;
+      --bg-sub:       #171717;
+      --surface:      #141414;
+      --border:       #262626;
+      --border-mid:   #333333;
+      --text:         #FAFAFA;
+      --text-2:       #A3A3A3;
+      --text-3:       #525252;
+      --accent:       #FAFAFA;
+      --accent-text:  #0A0A0A;
+      --accent-hover: #E5E5E5;
+    }
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 24px 16px;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 420px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      transition: border-color 0.2s;
+    }
+
+    .header-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.1px;
+    }
+
+    .theme-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .theme-btn:hover { background: var(--bg-sub); color: var(--text); }
+    .theme-btn .icon-sun  { display: none; }
+    .theme-btn .icon-moon { display: block; }
+    [data-theme="dark"] .theme-btn .icon-sun  { display: block; }
+    [data-theme="dark"] .theme-btn .icon-moon { display: none; }
+
+    /* Input row */
+    .input-section { padding: 12px 16px; border-bottom: 1px solid var(--border); transition: border-color 0.2s; }
+
+    .input-row { display: flex; gap: 6px; }
+
+    .field {
+      flex: 1;
+      height: 34px;
+      background: var(--bg-sub);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 0 10px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 400;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s, background 0.2s;
+      min-width: 0;
+    }
+    .field::placeholder { color: var(--text-3); }
+    .field:focus { border-color: var(--text-2); }
+
+    .btn-primary {
+      height: 34px;
+      padding: 0 14px;
+      background: var(--accent);
+      color: var(--accent-text);
+      border: 1px solid var(--accent);
+      border-radius: 7px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+    .btn-primary:disabled { opacity: 0.4; cursor: default; }
+
+    .error-msg {
+      display: none;
+      margin-top: 7px;
+      font-size: 11.5px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    /* Preview area */
+    .preview-section {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      transition: border-color 0.2s;
+    }
+
+    .canvas-card {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1;
+      background: var(--bg-sub);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .canvas-card canvas,
+    .canvas-card #avatarImg {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    .canvas-card a.avatar-link {
+      display: block;
+      width: 100%;
+      height: 100%;
+      line-height: 0;
+    }
+
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 32px 20px;
+      text-align: center;
+      color: var(--text-3);
+    }
+
+    .empty-state svg { color: var(--text-3); }
+    .empty-title { font-size: 12.5px; font-weight: 500; color: var(--text-2); }
+    .empty-sub { font-size: 11.5px; color: var(--text-3); }
+
+    .loading-bar {
+      display: none;
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--border);
+      overflow: hidden;
+      z-index: 5;
+    }
+    .loading-bar::after {
+      content: '';
+      position: absolute;
+      height: 100%;
+      width: 30%;
+      background: var(--accent);
+      animation: sweep 1.1s ease-in-out infinite;
+    }
+    @keyframes sweep { 0% { left: -30%; } 100% { left: 100%; } }
+
+    /* Actions row under preview */
+    .action-row {
+      display: flex;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .action-row button {
+      flex: 1;
+      height: 32px;
+      background: transparent;
+      color: var(--text-2);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      font-family: inherit;
+      font-size: 12.5px;
+      font-weight: 500;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .action-row button:hover { background: var(--bg-sub); color: var(--text); border-color: var(--border-mid); }
+
+    /* Settings */
+    .settings {
+      padding: 4px 16px 12px;
+    }
+
+    details {
+      border-bottom: 1px solid var(--border);
+      transition: border-color 0.2s;
+    }
+    details:last-child { border-bottom: none; }
+
+    summary {
+      cursor: pointer;
+      padding: 10px 0;
+      font-size: 11.5px;
+      font-weight: 600;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      color: var(--text-2);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      list-style: none;
+      user-select: none;
+    }
+    summary::-webkit-details-marker { display: none; }
+
+    summary::after {
+      content: '';
+      width: 8px;
+      height: 8px;
+      border-right: 1.5px solid var(--text-3);
+      border-bottom: 1.5px solid var(--text-3);
+      transform: rotate(45deg);
+      transition: transform 0.2s;
+      margin-right: 3px;
+      margin-top: -3px;
+    }
+    details[open] > summary::after { transform: rotate(-135deg); margin-top: 2px; }
+
+    .details-body { padding: 2px 0 10px; }
+
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-height: 30px;
+    }
+    .row + .row { margin-top: 4px; }
+
+    .row-label {
+      font-size: 12.5px;
+      font-weight: 400;
+      color: var(--text);
+      flex: 1;
+    }
+    .row-label small {
+      display: block;
+      font-size: 10.5px;
+      color: var(--text-3);
+      margin-top: 1px;
+    }
+
+    /* Toggle */
+    .toggle { position: relative; width: 32px; height: 18px; cursor: pointer; flex-shrink: 0; }
+    .toggle input { display: none; }
+    .toggle-track {
+      position: absolute; inset: 0;
+      background: var(--border-mid);
+      border-radius: 18px;
+      transition: background 0.2s;
+    }
+    .toggle-track::before {
+      content: '';
+      position: absolute;
+      width: 12px; height: 12px;
+      top: 2px; left: 2px;
+      background: #FFFFFF;
+      border-radius: 50%;
+      transition: transform 0.2s;
+    }
+    .toggle input:checked + .toggle-track { background: var(--accent); }
+    .toggle input:checked + .toggle-track::before { transform: translateX(14px); }
+
+    [data-theme="dark"] .toggle-track::before { background: #0A0A0A; }
+    [data-theme="dark"] .toggle input:checked + .toggle-track::before { background: #0A0A0A; }
+
+    /* Select */
+    .select-field {
+      height: 28px;
+      background: var(--bg-sub);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0 22px 0 8px;
+      font-family: inherit;
+      font-size: 12px;
+      color: var(--text);
+      cursor: pointer;
+      outline: none;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' fill='none'%3E%3Cpath d='M1 1l3 3 3-3' stroke='%23A3A3A3' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 7px center;
+      max-width: 130px;
+      transition: border-color 0.15s, background-color 0.2s;
+    }
+    .select-field:focus { border-color: var(--text-2); }
+
+    /* Number */
+    .number-field {
+      height: 28px;
+      width: 58px;
+      background: var(--bg-sub);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0 6px;
+      font-family: inherit;
+      font-size: 12px;
+      color: var(--text);
+      text-align: center;
+      outline: none;
+      -moz-appearance: textfield;
+      transition: border-color 0.15s, background-color 0.2s;
+    }
+    .number-field::-webkit-inner-spin-button,
+    .number-field::-webkit-outer-spin-button { -webkit-appearance: none; }
+    .number-field:focus { border-color: var(--text-2); }
+
+    /* Color */
+    .color-swatch {
+      position: relative;
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .color-swatch input[type="color"] {
+      position: absolute;
+      inset: -8px;
+      width: calc(100% + 16px);
+      height: calc(100% + 16px);
+      border: none;
+      cursor: pointer;
+      padding: 0;
+    }
+
+    .settings-group { transition: opacity 0.2s; }
+    .settings-group.hidden { opacity: 0.35; pointer-events: none; }
+
+  </style>
+</head>
+<body>
+
+<div class="app">
+
+  <div class="header">
+    <div class="header-title">HD Avatar</div>
+    <button class="theme-btn" id="themeToggle" aria-label="Toggle theme">
+      <svg class="icon-moon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
+      </svg>
+      <svg class="icon-sun" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="4"/>
+        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+      </svg>
+    </button>
+  </div>
+
+  <div class="input-section">
+    <div class="input-row">
+      <input type="text" class="field" id="usernameInput" placeholder="Roblox username" autocomplete="off" spellcheck="false">
+      <button class="btn-primary" id="generateBtn">Generate</button>
+    </div>
+    <div class="error-msg" id="errorMsg"></div>
+  </div>
+
+  <div class="preview-section">
+    <div class="canvas-card" id="canvasWrap">
+      <div class="empty-state" id="placeholder">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="8" r="4"/>
+          <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+        </svg>
+        <div class="empty-title">No avatar yet</div>
+        <div class="empty-sub">Enter a username to begin</div>
+      </div>
+      <canvas id="avatarCanvas" style="display:none;"></canvas>
+      <a class="avatar-link" id="avatarLink" href="#" target="_blank" rel="noopener" style="display:none;">
+        <img id="avatarImg" alt="" />
+      </a>
+      <div class="loading-bar" id="loadingBar"></div>
+    </div>
+
+    <div class="action-row">
+      <button id="downloadBtn">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Download
+      </button>
+      <button id="copyBtn">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+          <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+        </svg>
+        Copy
+      </button>
+    </div>
+  </div>
+
+  <div class="settings">
+
+    <details>
+      <summary>Background</summary>
+      <div class="details-body">
+        <div class="row">
+          <div class="row-label">Custom color<small>Replaces white background</small></div>
+          <label class="toggle">
+            <input type="checkbox" id="enableBg">
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+        <div class="row" id="bgColorRow" style="display:none;">
+          <div class="row-label">Color</div>
+          <div class="color-swatch"><input type="color" id="bgColor" value="#1a1a2e"></div>
+        </div>
+      </div>
+    </details>
+
+    <details open>
+      <summary>Overlay</summary>
+      <div class="details-body">
+        <div class="row">
+          <div class="row-label">Username overlay</div>
+          <label class="toggle">
+            <input type="checkbox" id="enableOverlay" checked>
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+
+        <div class="settings-group" id="overlaySettings" style="margin-top:4px;">
+          <div class="row">
+            <div class="row-label">Format</div>
+            <select class="select-field" id="nameFormat">
+              <option value="username">username</option>
+              <option value="display">Display Name</option>
+              <option value="both">Display (username)</option>
+              <option value="both-reverse">username (Display)</option>
+            </select>
+          </div>
+
+          <div class="row">
+            <div class="row-label">Position</div>
+            <select class="select-field" id="position">
+              <option value="bottom-left">Bottom left</option>
+              <option value="bottom-right">Bottom right</option>
+              <option value="bottom-center">Bottom center</option>
+              <option value="top-left">Top left</option>
+              <option value="top-right">Top right</option>
+              <option value="top-center">Top center</option>
+            </select>
+          </div>
+
+          <div class="row">
+            <div class="row-label">Font</div>
+            <select class="select-field" id="fontFamily">
+              <option value="Arial, sans-serif">Arial</option>
+              <option value="'Segoe UI', sans-serif">Segoe UI</option>
+              <option value="Georgia, serif">Georgia</option>
+              <option value="'Courier New', monospace">Courier New</option>
+              <option value="Impact, sans-serif">Impact</option>
+              <option value="'Comic Sans MS', cursive">Comic Sans</option>
+            </select>
+          </div>
+
+          <div class="row">
+            <div class="row-label">Size<small>% of image height</small></div>
+            <input type="number" class="number-field" id="fontSize" value="4.5" min="1" max="15" step="0.5">
+          </div>
+
+          <div class="row">
+            <div class="row-label">Color</div>
+            <div class="color-swatch"><input type="color" id="textColor" value="#000000"></div>
+          </div>
+
+          <div class="row">
+            <div class="row-label">Bold</div>
+            <label class="toggle">
+              <input type="checkbox" id="bold">
+              <span class="toggle-track"></span>
+            </label>
+          </div>
+
+          <div class="row">
+            <div class="row-label">Shadow<small>Outline for readability</small></div>
+            <label class="toggle">
+              <input type="checkbox" id="textShadow">
+              <span class="toggle-track"></span>
+            </label>
+          </div>
+
+          <div class="row" id="shadowColorRow" style="display:none;">
+            <div class="row-label">Shadow color</div>
+            <div class="color-swatch"><input type="color" id="shadowColor" value="#ffffff"></div>
+          </div>
+        </div>
+      </div>
+    </details>
+
+  </div>
+
+</div>
+
+<script>
+  const themeToggle = document.getElementById('themeToggle');
+  const saved = localStorage.getItem('theme') || 'light';
+  document.documentElement.setAttribute('data-theme', saved);
+  themeToggle.addEventListener('click', () => {
+    const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('theme', next);
+  });
+
+  const PROXY     = 'https://corsproxy.io/?url=';
+  const USERS_API = 'https://users.roblox.com/v1/usernames/users';
+  const THUMB_API = 'https://thumbnails.roblox.com/v1/users/avatar';
+
+  let currentUserId      = '';
+  let currentUsername    = '';
+  let currentDisplayName = '';
+  let currentImageUrl    = '';
+
+  const usernameInput   = document.getElementById('usernameInput');
+  const generateBtn     = document.getElementById('generateBtn');
+  const errorMsg        = document.getElementById('errorMsg');
+  const canvas          = document.getElementById('avatarCanvas');
+  const ctx             = canvas.getContext('2d');
+  const placeholder     = document.getElementById('placeholder');
+  const loadingBar      = document.getElementById('loadingBar');
+  const downloadBtn     = document.getElementById('downloadBtn');
+  const copyBtn         = document.getElementById('copyBtn');
+  const enableBg        = document.getElementById('enableBg');
+  const bgColorRow      = document.getElementById('bgColorRow');
+  const bgColorInput    = document.getElementById('bgColor');
+  const enableOverlay   = document.getElementById('enableOverlay');
+  const overlaySettings = document.getElementById('overlaySettings');
+  const textShadow      = document.getElementById('textShadow');
+  const shadowColorRow  = document.getElementById('shadowColorRow');
+  const avatarLink      = document.getElementById('avatarLink');
+  const avatarImg       = document.getElementById('avatarImg');
+
+  enableBg.addEventListener('change', () => {
+    bgColorRow.style.display = enableBg.checked ? 'flex' : 'none';
+    if (currentImageUrl) redraw();
+  });
+  enableOverlay.addEventListener('change', () => {
+    overlaySettings.classList.toggle('hidden', !enableOverlay.checked);
+    if (currentImageUrl) redraw();
+  });
+  textShadow.addEventListener('change', () => {
+    shadowColorRow.style.display = textShadow.checked ? 'flex' : 'none';
+    if (currentImageUrl) redraw();
+  });
+
+  ['nameFormat','position','fontFamily','fontSize','textColor','bold','bgColor','shadowColor'].forEach(id => {
+    document.getElementById(id).addEventListener('change', () => {
+      if (currentImageUrl) redraw();
+    });
+  });
+
+  usernameInput.addEventListener('keydown', e => { if (e.key === 'Enter') generate(); });
+  generateBtn.addEventListener('click', generate);
+  downloadBtn.addEventListener('click', downloadImage);
+  copyBtn.addEventListener('click', copyImage);
+
+  async function lookupUser(username) {
+    const res = await fetch(PROXY + encodeURIComponent(USERS_API), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ usernames: [username], excludeBannedUsers: false })
+    });
+    if (!res.ok) throw new Error('Roblox API error');
+    const data = await res.json();
+    if (!data.data || !data.data.length) throw new Error(`User "${username}" not found`);
+    return data.data[0];
+  }
+
+  async function getAvatarUrl(userId) {
+    const url = THUMB_API + `?userIds=${userId}&size=720x720&format=Png&isCircular=false`;
+    const res = await fetch(PROXY + encodeURIComponent(url));
+    if (!res.ok) throw new Error('Could not fetch avatar');
+    const data = await res.json();
+    if (!data.data || !data.data[0] || data.data[0].state !== 'Completed') {
+      throw new Error('Avatar not ready — try again');
+    }
+    return data.data[0].imageUrl;
+  }
+
+  function upgradeUrl(url) {
+    return url.replace(/\/\d+\/\d+\//g, '/1024/1024/');
+  }
+
+  async function loadImage(url) {
+    for (const attempt of [upgradeUrl(url), url]) {
+      try {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = reject;
+          img.src = PROXY + encodeURIComponent(attempt);
+        });
+        return img;
+      } catch (_) {}
+    }
+    throw new Error('Failed to load avatar image');
+  }
+
+  async function generate() {
+    const username = usernameInput.value.trim().replace(/^@/, '');
+    if (!username) return;
+    setLoading(true);
+    hideError();
+    try {
+      const user = await lookupUser(username);
+      currentUserId      = user.id;
+      currentUsername    = user.name;
+      currentDisplayName = user.displayName || user.name;
+      currentImageUrl    = await getAvatarUrl(user.id);
+      await redraw();
+    } catch (e) {
+      showError(e.message);
+      setLoading(false);
+    }
+  }
+
+  async function redraw() {
+    setLoading(true);
+    try {
+      const img = await loadImage(currentImageUrl);
+      canvas.width  = img.naturalWidth  || img.width;
+      canvas.height = img.naturalHeight || img.height;
+      const w = canvas.width, h = canvas.height;
+
+      if (enableBg.checked) {
+        ctx.fillStyle = bgColorInput.value;
+        ctx.fillRect(0, 0, w, h);
+        const off = document.createElement('canvas');
+        off.width = w; off.height = h;
+        const oc = off.getContext('2d');
+        oc.drawImage(img, 0, 0, w, h);
+        const id = oc.getImageData(0, 0, w, h);
+        const d = id.data, t = 230;
+        for (let i = 0; i < d.length; i += 4) {
+          if (d[i] >= t && d[i+1] >= t && d[i+2] >= t) d[i+3] = 0;
+        }
+        oc.putImageData(id, 0, 0);
+        ctx.drawImage(off, 0, 0);
+      } else {
+        ctx.clearRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+      }
+
+      if (enableOverlay.checked) {
+        const fmt       = document.getElementById('nameFormat').value;
+        const position  = document.getElementById('position').value;
+        const font      = document.getElementById('fontFamily').value;
+        const sizePct   = parseFloat(document.getElementById('fontSize').value) || 4.5;
+        const color     = document.getElementById('textColor').value;
+        const isBold    = document.getElementById('bold').checked;
+        const hasShadow = textShadow.checked;
+        const shadowClr = document.getElementById('shadowColor').value;
+
+        let text = currentUsername;
+        if (fmt === 'display')           text = currentDisplayName;
+        else if (fmt === 'both')         text = `${currentDisplayName} (${currentUsername})`;
+        else if (fmt === 'both-reverse') text = `${currentUsername} (${currentDisplayName})`;
+
+        const fontSize = Math.max(8, Math.floor(h * sizePct / 100));
+        ctx.font = `${isBold ? 'bold' : 'normal'} ${fontSize}px ${font}`;
+        ctx.textBaseline = 'bottom';
+
+        const padding = Math.floor(fontSize * 0.5);
+        const tw = ctx.measureText(text).width;
+
+        const [halign, valign] = ({
+          'bottom-left':   ['left',   'bottom'],
+          'bottom-right':  ['right',  'bottom'],
+          'bottom-center': ['center', 'bottom'],
+          'top-left':      ['left',   'top'],
+          'top-right':     ['right',  'top'],
+          'top-center':    ['center', 'top'],
+        })[position] || ['left', 'bottom'];
+
+        let x = padding;
+        if (halign === 'right')  x = w - tw - padding;
+        if (halign === 'center') x = (w - tw) / 2;
+        let y = h - padding;
+        if (valign === 'top') { ctx.textBaseline = 'top'; y = padding; }
+
+        if (hasShadow) {
+          ctx.fillStyle = shadowClr;
+          for (const [dx, dy] of [[-1,-1],[-1,1],[1,-1],[1,1],[0,-1],[0,1],[-1,0],[1,0]]) {
+            ctx.fillText(text, x+dx, y+dy);
+          }
+        }
+        ctx.fillStyle = color;
+        ctx.fillText(text, x, y);
+      }
+
+      // Output to <img> wrapped in <a> for Pinterest pin extension
+      const dataUrl = canvas.toDataURL('image/png');
+      const profileUrl = `https://www.roblox.com/users/${currentUserId}/profile`;
+      const pinTitle = `user: ${currentUsername}`;
+
+      avatarImg.src = dataUrl;
+      avatarImg.alt = pinTitle;
+      avatarImg.title = pinTitle;
+      avatarImg.setAttribute('data-pin-url', profileUrl);
+      avatarImg.setAttribute('data-pin-description', pinTitle);
+
+      avatarLink.href = profileUrl;
+      avatarLink.title = pinTitle;
+      avatarLink.style.display = 'block';
+
+      placeholder.style.display = 'none';
+      canvas.style.display = 'none';
+      downloadBtn.style.display = 'inline-flex';
+      copyBtn.style.display = 'inline-flex';
+    } catch(e) {
+      showError(e.message);
+    }
+    setLoading(false);
+  }
+
+  function downloadImage() {
+    const a = document.createElement('a');
+    a.download = `${currentUsername}_hd.png`;
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+  }
+
+  async function copyImage() {
+    const original = copyBtn.innerHTML;
+    try {
+      canvas.toBlob(async blob => {
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+        copyBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Copied`;
+        setTimeout(() => { copyBtn.innerHTML = original; }, 1800);
+      });
+    } catch (_) {
+      copyBtn.innerHTML = 'Failed';
+      setTimeout(() => { copyBtn.innerHTML = original; }, 1800);
+    }
+  }
+
+  function setLoading(on) {
+    generateBtn.disabled = on;
+    loadingBar.style.display = on ? 'block' : 'none';
+  }
+
+  function showError(msg) { errorMsg.textContent = msg; errorMsg.style.display = 'block'; }
+  function hideError()    { errorMsg.style.display = 'none'; }
+</script>
+</body>
+</html>
