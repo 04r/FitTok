@@ -74,54 +74,7 @@
       transition: background 0.35s var(--ease), color 0.35s var(--ease);
     }
 
-    /* Standalone outfits toggle — small floating button to the right of .app */
-    .outfits-toggle {
-      align-self: center;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      padding: 14px 10px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      cursor: pointer;
-      color: var(--text);
-      font-family: inherit;
-      transition: background 0.25s var(--ease), border-color 0.25s var(--ease), transform 0.2s var(--ease), box-shadow 0.25s var(--ease);
-      animation: scaleIn 0.4s var(--ease) both;
-      flex-shrink: 0;
-      min-width: 44px;
-    }
-    .outfits-toggle[hidden] { display: none; }
-    .outfits-toggle:hover {
-      background: var(--bg-sub);
-      border-color: var(--text-2);
-      transform: translateY(-1px);
-    }
-    .outfits-toggle:active { transform: scale(0.97); }
-    .outfits-toggle-label {
-      font-size: 9.5px;
-      font-weight: 700;
-      letter-spacing: 0.6px;
-      writing-mode: vertical-rl;
-      transform: rotate(180deg);
-      color: var(--text);
-    }
-    .outfits-toggle-count {
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--text);
-      padding: 1px 6px;
-      background: var(--bg-sub);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-    }
-    .outfits-toggle svg { color: var(--text-3); }
-    .outfits-toggle:hover svg { color: var(--text); }
-
-    /* Outfits side panel — sits to the right of the main card when expanded */
+    /* Outfits side panel — sits to the right of the main card when present */
     .side-panel {
       width: 100%;
       max-width: 420px;
@@ -149,41 +102,25 @@
       letter-spacing: 0.6px;
       text-transform: uppercase;
       color: var(--text);
-    }
-    .side-panel-close {
-      width: 26px;
-      height: 26px;
-      border: 1px solid var(--border);
-      background: transparent;
-      color: var(--text-3);
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 16px;
-      line-height: 1;
       display: flex;
       align-items: center;
-      justify-content: center;
-      transition: background 0.2s var(--ease), color 0.2s var(--ease), border-color 0.2s var(--ease);
+      gap: 8px;
     }
-    .side-panel-close:hover { background: var(--bg-sub); color: var(--text); border-color: var(--text-2); }
+    .side-panel-count {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 7px;
+      background: var(--bg-sub);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      letter-spacing: 0;
+    }
 
-    /* Mobile: stack toggle + side panel below the main card */
+    /* Mobile: stack side panel below the main card */
     @media (max-width: 900px) {
       body { flex-direction: column; align-items: center; }
       .side-panel { max-width: 420px; }
-      .outfits-toggle {
-        flex-direction: row;
-        width: 100%;
-        max-width: 420px;
-        padding: 10px 14px;
-        gap: 10px;
-        justify-content: space-between;
-      }
-      .outfits-toggle-label {
-        writing-mode: horizontal-tb;
-        transform: none;
-        font-size: 11px;
-      }
     }
 
     .app {
@@ -389,6 +326,7 @@
       display: flex;
       gap: 6px;
       margin-top: 10px;
+      flex-wrap: wrap;
     }
 
     .action-row button {
@@ -416,6 +354,22 @@
     .action-row button:active { transform: scale(0.97); }
     .action-row button svg { transition: transform 0.2s var(--ease); }
     .action-row button:hover svg { transform: translateY(-1px); }
+
+    /* Pinterest button — branded red, always recognizable */
+    .action-row button.btn-pinterest {
+      background: #E60023;
+      color: #FFFFFF;
+      border-color: #E60023;
+    }
+    .action-row button.btn-pinterest:hover {
+      background: #AD081B;
+      color: #FFFFFF;
+      border-color: #AD081B;
+    }
+    .action-row button.btn-pinterest:focus-visible {
+      outline: 2px solid #E60023;
+      outline-offset: 2px;
+    }
 
     .outfits-grid {
       display: grid;
@@ -689,6 +643,12 @@
         </svg>
         Copy
       </button>
+      <button id="pinBtn" class="btn-pinterest">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M12 0C5.4 0 0 5.4 0 12c0 5.1 3.1 9.4 7.6 11.2-.1-1-.2-2.4 0-3.5.2-1 1.5-6.3 1.5-6.3s-.4-.8-.4-1.9c0-1.8 1-3.1 2.3-3.1 1.1 0 1.6.8 1.6 1.8 0 1.1-.7 2.7-1 4.2-.3 1.3.6 2.3 1.9 2.3 2.3 0 4-2.4 4-5.9 0-3.1-2.2-5.3-5.4-5.3-3.7 0-5.8 2.7-5.8 5.5 0 1.1.4 2.3.9 2.9.1.1.1.2.1.4-.1.4-.3 1.3-.4 1.5-.1.2-.2.3-.5.2-1.6-.7-2.6-3.1-2.6-4.9 0-4 2.9-7.6 8.3-7.6 4.3 0 7.7 3.1 7.7 7.2 0 4.3-2.7 7.8-6.5 7.8-1.3 0-2.5-.7-2.9-1.5l-.8 3c-.3 1.1-1 2.4-1.5 3.3 1.1.4 2.3.5 3.5.5 6.6 0 12-5.4 12-12S18.6 0 12 0z"/>
+        </svg>
+        Pinterest
+      </button>
     </div>
   </div>
 
@@ -818,37 +778,25 @@
 
 </div>
 
-<button class="outfits-toggle" id="outfitsToggle" hidden aria-label="Show outfits">
-  <span class="outfits-toggle-label">OUTFITS</span>
-  <span class="outfits-toggle-count" id="outfitsToggleCount">0</span>
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <polyline points="9 18 15 12 9 6"/>
-  </svg>
-</button>
-
 <aside class="side-panel" id="outfitsPanel" hidden>
   <div class="side-panel-header">
-    <div class="side-panel-title">Outfits <span class="outfits-count" id="sidePanelCount"></span></div>
-    <button class="side-panel-close" id="closeOutfitsPanel" aria-label="Close">
-      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="18" y1="6" x2="6" y2="18"/>
-        <line x1="6" y1="6" x2="18" y2="18"/>
-      </svg>
-    </button>
+    <div class="side-panel-title">Outfits <span class="side-panel-count" id="sidePanelCount"></span></div>
   </div>
   <div class="outfits-grid" id="outfitsGrid"></div>
 </aside>
 
 <script>
   // If someone landed here via a Pinterest pin click, redirect to the real
-  // Roblox profile. Matches both URL formats:
-  //   /users/profile?username=X   (current — username-based)
-  //   /users/<id>/profile         (legacy — id-based, back-compat for old pins)
+  // Roblox profile. Matches paths that END with these patterns (so it works
+  // on both root deploys and project-page subpath deploys like /FitTok/):
+  //   .../users/profile?username=X   (current — username-based)
+  //   .../users/<id>/profile         (legacy — id-based, back-compat)
   // Append #stay to the URL to bypass this redirect during local testing.
   (function pinRedirect() {
     if (window.location.hash.includes('stay')) return;
+    const path = window.location.pathname.replace(/\/$/, ''); // strip trailing slash
     // New username-based format
-    if (window.location.pathname === '/users/profile') {
+    if (path.endsWith('/users/profile')) {
       const params = new URLSearchParams(window.location.search);
       const u = params.get('username');
       if (u) {
@@ -857,7 +805,7 @@
       }
     }
     // Legacy id-based format
-    const m = window.location.pathname.match(/^\/users\/(\d+)\/profile\/?$/);
+    const m = path.match(/\/users\/(\d+)\/profile$/);
     if (m) window.location.replace(`https://www.roblox.com/users/${m[1]}/profile`);
   })();
 
@@ -950,22 +898,24 @@
   const shadowColorRow  = document.getElementById('shadowColorRow');
   const avatarLink      = document.getElementById('avatarLink');
   const canvasWrap      = document.getElementById('canvasWrap');
-  const outfitsToggle      = document.getElementById('outfitsToggle');
-  const outfitsToggleCount = document.getElementById('outfitsToggleCount');
-  const outfitsGrid        = document.getElementById('outfitsGrid');
-  const outfitsPanel       = document.getElementById('outfitsPanel');
-  const sidePanelCount     = document.getElementById('sidePanelCount');
-  const closeOutfitsPanel  = document.getElementById('closeOutfitsPanel');
-  const baseHrefEl         = document.getElementById('baseHref');
+  const outfitsGrid     = document.getElementById('outfitsGrid');
+  const outfitsPanel    = document.getElementById('outfitsPanel');
+  const sidePanelCount  = document.getElementById('sidePanelCount');
+  const pinBtn          = document.getElementById('pinBtn');
+  const baseHrefEl      = document.getElementById('baseHref');
 
-  // Standalone outfits toggle ↔ side panel
-  outfitsToggle.addEventListener('click', () => {
-    outfitsPanel.hidden = false;
-    outfitsToggle.hidden = true;
-  });
-  closeOutfitsPanel.addEventListener('click', () => {
-    outfitsPanel.hidden = true;
-    outfitsToggle.hidden = false;
+  // Pinterest button — opens Pinterest's official pin creator with the real
+  // Roblox URL and CDN avatar URL. Guaranteed to link to Roblox, no github.
+  pinBtn.addEventListener('click', () => {
+    if (!currentUsername || !currentImageUrl) return;
+    const target = `https://www.roblox.com/users/profile?username=${encodeURIComponent(currentUsername)}`;
+    const params = new URLSearchParams({
+      url: target,
+      media: currentImageUrl,
+      description: `user: ${currentUsername}`
+    });
+    const pinUrl = `https://www.pinterest.com/pin/create/button/?${params.toString()}`;
+    window.open(pinUrl, 'pinterest', 'width=760,height=640,scrollbars=yes,resizable=yes');
   });
 
   // Outfits cache: userId → array of { id, name, thumbUrl }
@@ -1122,20 +1072,18 @@
   }
 
   function rewritePinUrl(username) {
-    // Rewrite the page URL to mimic Roblox's own username-lookup URL format:
-    //   roblox.com/users/profile?username=X
-    // Our URL becomes:
-    //   04r.github.io/users/profile?username=X
-    // 404.html catches this and redirects to the real Roblox URL.
+    // Best-effort URL rewrite for extensions that DO respect overrides
+    // (the Pinterest button below is the guaranteed path; this is a bonus).
+    // Preserves project-page subpath like /FitTok/ so 404.html catches the redirect.
     try {
       if (!window.location.protocol.startsWith('http')) return;
-      const target = `/users/profile?username=${encodeURIComponent(username)}`;
+      const path = window.location.pathname;
+      const basePath = path.replace(/\/[^\/]*$/, ''); // '/FitTok' on project pages, '' on root
+      const target = `${basePath}/users/profile?username=${encodeURIComponent(username)}`;
       const current = window.location.pathname + window.location.search;
       if (current !== target) {
         history.replaceState({}, '', target);
-        // Synthetic events for extensions that cache window.location
         try { window.dispatchEvent(new PopStateEvent('popstate')); } catch(_) {}
-        try { window.dispatchEvent(new HashChangeEvent('hashchange')); } catch(_) {}
       }
     } catch (_) { /* no-op for file:// or sandboxed contexts */ }
   }
@@ -1170,10 +1118,8 @@
   }
 
   async function loadOutfitsFor(userId) {
-    outfitsToggle.hidden = true;
-    outfitsPanel.hidden  = true;
+    outfitsPanel.hidden = true;
     outfitsGrid.innerHTML = '';
-    outfitsToggleCount.textContent = '';
     sidePanelCount.textContent = '';
 
     const cacheKey = String(userId);
@@ -1219,9 +1165,8 @@
     }
 
     renderOutfits(outfits);
-    outfitsToggleCount.textContent = outfits.length;
     sidePanelCount.textContent = outfits.length;
-    outfitsToggle.hidden = false;
+    outfitsPanel.hidden = false;
   }
 
   function renderOutfits(outfits) {

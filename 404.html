@@ -5,14 +5,15 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Redirecting…</title>
   <script>
-    // Pinterest pins from this tool look like:
-    //   https://04r.github.io/users/profile?username=X   (current)
-    //   https://04r.github.io/users/<id>/profile         (legacy)
-    // GitHub Pages serves this 404.html for those paths.
-    // Redirect to the real Roblox profile.
+    // Catch pins that link back to our github page and bounce them to Roblox.
+    // Matches paths that END with these patterns, so it works on both root
+    // deploys and project-page subpath deploys (like /FitTok/):
+    //   .../users/profile?username=X   (current)
+    //   .../users/<id>/profile         (legacy)
     (function () {
+      var path = location.pathname.replace(/\/$/, '');
       // New username-based format
-      if (location.pathname === '/users/profile') {
+      if (path.endsWith('/users/profile')) {
         var params = new URLSearchParams(location.search);
         var u = params.get('username');
         if (u) {
@@ -21,7 +22,7 @@
         }
       }
       // Legacy id-based format
-      var m = location.pathname.match(/^\/users\/(\d+)\/profile\/?$/);
+      var m = path.match(/\/users\/(\d+)\/profile$/);
       if (m) {
         location.replace('https://www.roblox.com/users/' + m[1] + '/profile');
         return;
