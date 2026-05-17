@@ -5,6 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>HD Avatar</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23000'/%3E%3C/svg%3E">
+  <!-- Pinterest / OG tags — overwritten dynamically when an avatar is generated -->
+  <link id="canonicalLink" rel="canonical" href="">
+  <meta id="ogUrl"         property="og:url"         content="">
+  <meta id="ogTitle"       property="og:title"       content="">
+  <meta id="ogImage"       property="og:image"       content="">
+  <meta id="ogDescription" property="og:description" content="">
+  <meta id="twUrl"         name="twitter:url"        content="">
+  <meta id="twTitle"       name="twitter:title"      content="">
+  <meta id="twImage"       name="twitter:image"      content="">
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -37,6 +46,14 @@
 
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
+    :root { --ease: cubic-bezier(0.16, 1, 0.3, 1); }
+
+    @keyframes fadeIn       { from { opacity: 0; }                          to { opacity: 1; } }
+    @keyframes fadeInUp     { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes scaleIn      { from { opacity: 0; transform: scale(0.96); }     to { opacity: 1; transform: scale(1); } }
+    @keyframes slideDown    { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes spin180      { from { transform: rotate(0); }                   to { transform: rotate(180deg); } }
+
     body {
       font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       font-weight: 500;
@@ -48,7 +65,7 @@
       align-items: flex-start;
       justify-content: center;
       padding: 24px 16px;
-      transition: background 0.2s, color 0.2s;
+      transition: background 0.35s var(--ease), color 0.35s var(--ease);
     }
 
     .app {
@@ -56,48 +73,53 @@
       max-width: 420px;
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 12px;
+      border-radius: 14px;
       overflow: hidden;
-      transition: background 0.2s, border-color 0.2s;
+      position: relative;
+      animation: scaleIn 0.45s var(--ease) both;
+      transition: background 0.35s var(--ease), border-color 0.35s var(--ease), box-shadow 0.3s var(--ease);
     }
+    .app:hover { box-shadow: 0 8px 32px rgba(0,0,0,0.08); }
+    [data-theme="dark"] .app:hover { box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
 
-    .header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 14px 16px;
-      border-bottom: 1px solid var(--border);
-      transition: border-color 0.2s;
-    }
-
-    .header-title {
-      font-size: 14px;
-      font-weight: 700;
-      color: var(--text);
-      letter-spacing: -0.2px;
-    }
-
+    /* Floating theme toggle — top-right corner of the card */
     .theme-btn {
-      width: 28px;
-      height: 28px;
-      border-radius: 6px;
-      border: 1px solid var(--border);
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      border: 1px solid transparent;
       background: transparent;
-      color: var(--text-2);
+      color: var(--text-3);
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      transition: background 0.15s, color 0.15s, border-color 0.15s;
+      z-index: 10;
+      transition: background 0.25s var(--ease), color 0.25s var(--ease), border-color 0.25s var(--ease), transform 0.2s var(--ease);
     }
-    .theme-btn:hover { background: var(--bg-sub); color: var(--text); }
+    .theme-btn:hover {
+      background: var(--bg-sub);
+      color: var(--text);
+      border-color: var(--border);
+    }
+    .theme-btn:active { transform: scale(0.92); }
+    .theme-btn svg { transition: transform 0.4s var(--ease), opacity 0.25s var(--ease); }
     .theme-btn .icon-sun  { display: none; }
     .theme-btn .icon-moon { display: block; }
     [data-theme="dark"] .theme-btn .icon-sun  { display: block; }
     [data-theme="dark"] .theme-btn .icon-moon { display: none; }
+    .theme-btn.spinning svg { animation: spin180 0.4s var(--ease); }
 
     /* Input row */
-    .input-section { padding: 12px 16px; border-bottom: 1px solid var(--border); transition: border-color 0.2s; }
+    .input-section {
+      padding: 16px 16px 12px;
+      padding-right: 52px; /* room for theme button */
+      border-bottom: 1px solid var(--border);
+      transition: border-color 0.35s var(--ease);
+    }
 
     .input-row { display: flex; gap: 6px; }
 
@@ -106,18 +128,22 @@
       height: 36px;
       background: var(--bg-sub);
       border: 1px solid var(--border);
-      border-radius: 7px;
+      border-radius: 8px;
       padding: 0 11px;
       font-family: inherit;
       font-size: 13.5px;
       font-weight: 500;
       color: var(--text);
       outline: none;
-      transition: border-color 0.15s, background 0.2s;
+      transition: border-color 0.2s var(--ease), background 0.35s var(--ease), box-shadow 0.2s var(--ease);
       min-width: 0;
     }
     .field::placeholder { color: var(--text-3); }
-    .field:focus { border-color: var(--text-2); }
+    .field:focus {
+      border-color: var(--text-2);
+      box-shadow: 0 0 0 3px rgba(0,0,0,0.04);
+    }
+    [data-theme="dark"] .field:focus { box-shadow: 0 0 0 3px rgba(255,255,255,0.06); }
 
     .btn-primary {
       height: 36px;
@@ -125,7 +151,7 @@
       background: var(--accent);
       color: var(--accent-text);
       border: 1px solid var(--accent);
-      border-radius: 7px;
+      border-radius: 8px;
       font-family: inherit;
       font-size: 13px;
       font-weight: 700;
@@ -133,24 +159,29 @@
       cursor: pointer;
       white-space: nowrap;
       flex-shrink: 0;
-      transition: background 0.15s, border-color 0.15s;
+      transition: background 0.2s var(--ease), border-color 0.2s var(--ease), transform 0.15s var(--ease), opacity 0.2s var(--ease);
     }
     .btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
-    .btn-primary:disabled { opacity: 0.4; cursor: default; }
+    .btn-primary:active { transform: scale(0.97); }
+    .btn-primary:disabled { opacity: 0.4; cursor: default; transform: none; }
 
     .error-msg {
       display: none;
-      margin-top: 7px;
+      margin-top: 8px;
       font-size: 11.5px;
       font-weight: 500;
       color: var(--text);
+    }
+    .error-msg.show {
+      display: block;
+      animation: slideDown 0.3s var(--ease) both;
     }
 
     /* Preview area */
     .preview-section {
       padding: 14px 16px;
       border-bottom: 1px solid var(--border);
-      transition: border-color 0.2s;
+      transition: border-color 0.35s var(--ease);
     }
 
     .canvas-card {
@@ -159,12 +190,12 @@
       aspect-ratio: 1;
       background: var(--bg-sub);
       border: 1px solid var(--border);
-      border-radius: 10px;
+      border-radius: 12px;
       overflow: hidden;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: background 0.2s, border-color 0.2s;
+      transition: background 0.35s var(--ease), border-color 0.35s var(--ease);
     }
 
     .canvas-card canvas,
@@ -173,6 +204,10 @@
       height: 100%;
       object-fit: contain;
       display: block;
+    }
+
+    .canvas-card #avatarImg.loaded {
+      animation: scaleIn 0.5s var(--ease) both;
     }
 
     .canvas-card a.avatar-link {
@@ -190,9 +225,14 @@
       padding: 32px 20px;
       text-align: center;
       color: var(--text-3);
+      animation: fadeIn 0.5s var(--ease) both;
     }
 
-    .empty-state svg { color: var(--text-3); }
+    .empty-state svg {
+      color: var(--text-3);
+      transition: transform 0.4s var(--ease);
+    }
+    .canvas-card:hover .empty-state svg { transform: translateY(-2px); }
     .empty-title { font-size: 13px; font-weight: 600; color: var(--text); }
     .empty-sub { font-size: 11.5px; font-weight: 500; color: var(--text-3); }
 
@@ -228,7 +268,7 @@
       background: transparent;
       color: var(--text);
       border: 1px solid var(--border-mid);
-      border-radius: 7px;
+      border-radius: 8px;
       font-family: inherit;
       font-size: 12.5px;
       font-weight: 600;
@@ -237,9 +277,16 @@
       align-items: center;
       justify-content: center;
       gap: 6px;
-      transition: background 0.15s, color 0.15s, border-color 0.15s;
+      transition: background 0.2s var(--ease), color 0.2s var(--ease), border-color 0.2s var(--ease), transform 0.15s var(--ease);
     }
-    .action-row button:hover { background: var(--bg-sub); color: var(--text); border-color: var(--border-mid); }
+    .action-row button.visible {
+      display: inline-flex;
+      animation: fadeInUp 0.35s var(--ease) both;
+    }
+    .action-row button:hover { background: var(--bg-sub); color: var(--text); border-color: var(--text-2); }
+    .action-row button:active { transform: scale(0.97); }
+    .action-row button svg { transition: transform 0.2s var(--ease); }
+    .action-row button:hover svg { transform: translateY(-1px); }
 
     /* Settings */
     .settings {
@@ -248,7 +295,7 @@
 
     details {
       border-bottom: 1px solid var(--border);
-      transition: border-color 0.2s;
+      transition: border-color 0.35s var(--ease);
     }
     details:last-child { border-bottom: none; }
 
@@ -265,8 +312,10 @@
       justify-content: space-between;
       list-style: none;
       user-select: none;
+      transition: color 0.2s var(--ease);
     }
     summary::-webkit-details-marker { display: none; }
+    summary:hover { color: var(--text-2); }
 
     summary::after {
       content: '';
@@ -275,12 +324,16 @@
       border-right: 1.5px solid var(--text-3);
       border-bottom: 1.5px solid var(--text-3);
       transform: rotate(45deg);
-      transition: transform 0.2s;
+      transition: transform 0.3s var(--ease), border-color 0.2s var(--ease);
       margin-right: 3px;
       margin-top: -3px;
     }
     details[open] > summary::after { transform: rotate(-135deg); margin-top: 2px; }
+    summary:hover::after { border-color: var(--text-2); }
 
+    details[open] > .details-body {
+      animation: slideDown 0.3s var(--ease) both;
+    }
     .details-body { padding: 2px 0 10px; }
 
     .row {
@@ -312,7 +365,7 @@
       position: absolute; inset: 0;
       background: var(--border-mid);
       border-radius: 18px;
-      transition: background 0.2s;
+      transition: background 0.3s var(--ease);
     }
     .toggle-track::before {
       content: '';
@@ -321,10 +374,11 @@
       top: 2px; left: 2px;
       background: #FFFFFF;
       border-radius: 50%;
-      transition: transform 0.2s;
+      transition: transform 0.3s var(--ease), background 0.3s var(--ease);
     }
     .toggle input:checked + .toggle-track { background: var(--accent); }
     .toggle input:checked + .toggle-track::before { transform: translateX(14px); }
+    .toggle:active .toggle-track::before { width: 14px; }
 
     [data-theme="dark"] .toggle-track::before { background: #0A0A0A; }
     [data-theme="dark"] .toggle input:checked + .toggle-track::before { background: #0A0A0A; }
@@ -391,8 +445,23 @@
       padding: 0;
     }
 
-    .settings-group { transition: opacity 0.2s; }
+    .settings-group {
+      transition: opacity 0.3s var(--ease), max-height 0.35s var(--ease);
+      overflow: hidden;
+    }
     .settings-group.hidden { opacity: 0.35; pointer-events: none; }
+
+    .row {
+      transition: opacity 0.25s var(--ease);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
 
   </style>
 </head>
@@ -400,18 +469,15 @@
 
 <div class="app">
 
-  <div class="header">
-    <div class="header-title">HD Avatar</div>
-    <button class="theme-btn" id="themeToggle" aria-label="Toggle theme">
-      <svg class="icon-moon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
-      </svg>
-      <svg class="icon-sun" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="4"/>
-        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
-      </svg>
-    </button>
-  </div>
+  <button class="theme-btn" id="themeToggle" aria-label="Toggle theme">
+    <svg class="icon-moon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
+    </svg>
+    <svg class="icon-sun" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="4"/>
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+    </svg>
+  </button>
 
   <div class="input-section">
     <div class="input-row">
@@ -584,12 +650,15 @@
 
 <script>
   const themeToggle = document.getElementById('themeToggle');
-  const saved = localStorage.getItem('theme') || 'light';
+  const saved = localStorage.getItem('theme') || 'dark';
   document.documentElement.setAttribute('data-theme', saved);
   themeToggle.addEventListener('click', () => {
     const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
     document.documentElement.setAttribute('data-theme', next);
     localStorage.setItem('theme', next);
+    themeToggle.classList.remove('spinning');
+    void themeToggle.offsetWidth; // retrigger animation
+    themeToggle.classList.add('spinning');
   });
 
   // Thumbnails: roproxy GET — no preflight, no rate-limit issues.
@@ -914,15 +983,34 @@
       avatarImg.title = pinTitle;
       avatarImg.setAttribute('data-pin-url', profileUrl);
       avatarImg.setAttribute('data-pin-description', pinTitle);
+      avatarImg.setAttribute('data-pin-media', dataUrl);
 
       avatarLink.href = profileUrl;
       avatarLink.title = pinTitle;
       avatarLink.style.display = 'block';
 
+      // Pinterest's "Save" extension reads page-level og:url / canonical FIRST,
+      // before image-level data-pin-url. So overwrite the page's meta tags to
+      // point at the Roblox profile, not 04r.github.io.
+      document.getElementById('canonicalLink').href = profileUrl;
+      document.getElementById('ogUrl').setAttribute('content', profileUrl);
+      document.getElementById('ogTitle').setAttribute('content', pinTitle);
+      document.getElementById('ogImage').setAttribute('content', dataUrl);
+      document.getElementById('ogDescription').setAttribute('content', pinTitle);
+      document.getElementById('twUrl').setAttribute('content', profileUrl);
+      document.getElementById('twTitle').setAttribute('content', pinTitle);
+      document.getElementById('twImage').setAttribute('content', dataUrl);
+      // Also rewrite the document title — some extensions read this as fallback
+      document.title = pinTitle;
+
       placeholder.style.display = 'none';
       canvas.style.display = 'none';
-      downloadBtn.style.display = 'inline-flex';
-      copyBtn.style.display = 'inline-flex';
+      // retrigger image fade-in animation
+      avatarImg.classList.remove('loaded');
+      void avatarImg.offsetWidth;
+      avatarImg.classList.add('loaded');
+      downloadBtn.classList.add('visible');
+      copyBtn.classList.add('visible');
     } catch(e) {
       showError(e.message);
     } finally {
@@ -956,8 +1044,13 @@
     loadingBar.style.display = on ? 'block' : 'none';
   }
 
-  function showError(msg) { errorMsg.textContent = msg; errorMsg.style.display = 'block'; }
-  function hideError()    { errorMsg.style.display = 'none'; }
+  function showError(msg) {
+    errorMsg.textContent = msg;
+    errorMsg.classList.remove('show');
+    void errorMsg.offsetWidth;
+    errorMsg.classList.add('show');
+  }
+  function hideError() { errorMsg.classList.remove('show'); }
 </script>
 </body>
 </html>
