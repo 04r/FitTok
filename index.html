@@ -78,30 +78,31 @@
     /* Outfits strip is absolutely positioned to the right of the centered
        main card. Absolute positioning means it never affects main card's
        centering — the main card stays dead-center in the viewport no matter
-       what's in the strip. */
+       what's in the strip. Positioned vertically so the toggle lines up with
+       the avatar preview area. */
     .outfits-strip {
       position: absolute;
-      top: 24px; /* match body padding-top */
+      top: 140px; /* lower so toggle aligns with avatar mid-area */
       left: 50%;
       margin-left: 224px; /* half main width (210) + gap (14) */
       display: flex;
       gap: 14px;
-      align-items: stretch;
+      align-items: flex-start;
     }
     .outfits-strip[hidden] { display: none; }
 
-    /* Compact toggle: small square with just a chevron. Sized to align with
-       the avatar preview area so the hint annotation lands naturally. */
+    /* Prominent square toggle. Sized like the user's sketch, positioned
+       vertically near the middle of the avatar preview area. */
     .outfits-toggle-wrap {
       position: relative;
-      padding-top: 60px; /* room above for the handdrawn hint */
+      padding-top: 70px; /* room above for the handdrawn hint */
     }
     .outfits-toggle {
-      width: 44px;
-      height: 44px;
+      width: 92px;
+      height: 92px;
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 10px;
+      border-radius: 14px;
       cursor: pointer;
       color: var(--text);
       display: flex;
@@ -121,59 +122,69 @@
     .outfits-toggle.is-open { background: var(--bg-sub); border-color: var(--text-2); }
     .outfits-toggle svg.chevron {
       color: var(--text-2);
+      width: 22px;
+      height: 22px;
       transition: transform 0.3s var(--ease), color 0.2s var(--ease);
     }
     .outfits-toggle:hover svg.chevron { color: var(--text); }
     .outfits-toggle.is-open svg.chevron { transform: rotate(180deg); color: var(--text); }
-    /* Tiny count badge on the corner of the button */
+    /* Count badge on the corner of the button */
     .outfits-toggle .badge {
       position: absolute;
-      top: -6px;
-      right: -6px;
-      min-width: 18px;
-      height: 18px;
-      padding: 0 5px;
+      top: -8px;
+      right: -8px;
+      min-width: 22px;
+      height: 22px;
+      padding: 0 7px;
       background: var(--accent);
       color: var(--accent-text);
-      border-radius: 10px;
-      font-size: 10px;
+      border-radius: 11px;
+      font-size: 11px;
       font-weight: 700;
       display: flex;
       align-items: center;
       justify-content: center;
       letter-spacing: 0;
+      border: 2px solid var(--bg);
     }
 
     /* Handdrawn "outfits" annotation pointing at the toggle button */
     .outfits-hint {
       position: absolute;
-      top: 0;
-      right: -4px;
-      width: 92px;
-      height: 64px;
+      top: -8px;
+      left: 0;
+      width: 120px;
+      height: 80px;
       pointer-events: none;
-      color: var(--text-3);
+      color: var(--text-2);
       opacity: 0;
-      animation: fadeIn 0.6s var(--ease) 0.25s forwards;
+      animation: fadeIn 0.6s var(--ease) 0.3s forwards;
+      transition: opacity 0.3s var(--ease);
+    }
+    .outfits-toggle-wrap.panel-open .outfits-hint {
+      opacity: 0 !important;
+      animation: none;
     }
     .outfits-hint text {
       font-family: 'Caveat', cursive;
-      font-size: 22px;
+      font-size: 26px;
       font-weight: 500;
       fill: currentColor;
     }
     .outfits-hint path {
       stroke: currentColor;
-      stroke-width: 1.4;
+      stroke-width: 1.6;
       fill: none;
       stroke-linecap: round;
       stroke-linejoin: round;
     }
 
-    /* Outfits side panel — slides out to the right of the toggle when opened */
+    /* Outfits side panel — slides out to the right of the toggle when opened.
+       Constrained height so the grid inside scrolls when there are many outfits. */
     .side-panel {
-      width: 380px;
-      max-width: 380px;
+      width: 300px;
+      max-width: 300px;
+      height: 440px;
       max-height: calc(100vh - 48px);
       background: var(--surface);
       border: 1px solid var(--border);
@@ -930,10 +941,12 @@
 
 <div class="outfits-strip" id="outfitsStrip" hidden>
   <div class="outfits-toggle-wrap">
-    <svg class="outfits-hint" viewBox="0 0 92 64" aria-hidden="true">
-      <text x="2" y="20">outfits</text>
-      <path d="M 30 28 C 50 30, 60 38, 68 50"/>
-      <path d="M 63 47 L 70 52 L 65 56"/>
+    <svg class="outfits-hint" viewBox="0 0 120 80" aria-hidden="true">
+      <text x="2" y="22">outfits</text>
+      <!-- Wavy curving line from text down to button -->
+      <path d="M 52 30 C 65 32, 72 40, 78 52 C 82 60, 88 66, 96 72"/>
+      <!-- Arrowhead -->
+      <path d="M 90 66 L 98 73 L 91 76"/>
     </svg>
     <button class="outfits-toggle" id="outfitsToggle" type="button" aria-label="Toggle outfits panel">
       <span class="badge" id="outfitsToggleCount">0</span>
@@ -1074,10 +1087,12 @@
 
   // Outfits toggle: open / close the side panel; the strip is shown
   // whenever the user has at least one public outfit.
+  const toggleWrap = outfitsToggle.closest('.outfits-toggle-wrap');
   outfitsToggle.addEventListener('click', () => {
     const willOpen = outfitsPanel.hidden;
     outfitsPanel.hidden = !willOpen;
     outfitsToggle.classList.toggle('is-open', willOpen);
+    toggleWrap.classList.toggle('panel-open', willOpen);
   });
 
   // Pinterest button — uploads the customized canvas (with username overlay
@@ -1372,6 +1387,7 @@
     outfitsStrip.hidden = true;
     outfitsPanel.hidden = true;
     outfitsToggle.classList.remove('is-open');
+    toggleWrap.classList.remove('panel-open');
     outfitsGrid.innerHTML = '';
     outfitsToggleCount.textContent = '';
     sidePanelCount.textContent = '';
