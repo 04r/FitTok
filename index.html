@@ -591,10 +591,11 @@
     localStorage.setItem('theme', next);
   });
 
-  // Thumbnails: roproxy.com handles GET with CORS.
-  // Username lookup (POST): corsproxy.io — roproxy doesn't support POST/preflight.
-  const THUMB_BASE = 'https://thumbnails.roproxy.com/v1/users';
-  const USERS_API  = 'https://corsproxy.io/?url=' + encodeURIComponent('https://users.roblox.com/v1/usernames/users');
+  // All GET-based through roproxy.com — no preflight, no POST, no rate-limit
+  // sharing with corsproxy.io (which gets 429'd by Roblox constantly).
+  const THUMB_BASE  = 'https://thumbnails.roproxy.com/v1/users';
+  const SEARCH_API  = 'https://users.roproxy.com/v1/users/search';
+  const USER_BY_ID  = 'https://users.roproxy.com/v1/users';
 
   // Highest size the API will return for each endpoint
   const API_MAX_SIZE = { full: 720, bust: 420, headshot: 720 };
@@ -655,16 +656,25 @@
   copyBtn.addEventListener('click', copyImage);
 
   async function lookupUser(username) {
-    const res = await fetch(USERS_API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-requested-with': 'XMLHttpRequest' },
-      body: JSON.stringify({ usernames: [username], excludeBannedUsers: false })
-    });
-    if (!res.ok) throw new Error('Lookup failed — try again');
+    // GET search via roproxy — no preflight, dedicated proxy IP (not rate-limited like corsproxy)
+    const url = `${SEARCH_API}?keyword=${encodeURIComponent(username)}&limit=25`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      if (res.status === 429) throw new Error('Rate limited — wait a few seconds and retry');
+      throw new Error('Lookup failed — try again');
+    }
     const data = await res.json();
-    if (!data || !data.data) throw new Error('Bad response');
-    if (!data.data.length) throw new Error(`User "${username}" not found`);
-    return data.data[0];
+    if (!data || !Array.isArray(data.data)) throw new Error('Bad response');
+
+    const lower = username.toLowerCase();
+    // Prefer exact username match; fall back to display-name match
+    let hit = data.data.find(u => (u.name || '').toLowerCase() === lower);
+    if (!hit) hit = data.data.find(u => (u.displayName || '').toLowerCase() === lower);
+
+    if (!hit) throw new Error(`User "${username}" not found`);
+
+    // search endpoint returns {id, name, displayName} — that's all we need
+    return { id: hit.id, name: hit.name, displayName: hit.displayName || hit.name };
   }
 
   async function getAvatarUrl(userId, size, view) {
