@@ -591,16 +591,19 @@
     localStorage.setItem('theme', next);
   });
 
-  const PROXIES = [
-    url => 'https://corsproxy.io/?url=' + encodeURIComponent(url),
-    url => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url),
-    url => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(url),
+  // Proxies that reliably forward POST bodies
+  const POST_PROXIES = [
+    'https://corsproxy.io/?url=',
+    'https://api.codetabs.com/v1/proxy?quest=',
   ];
-  const USERS_API   = 'https://users.roblox.com/v1/usernames/users';
-  const THUMB_BASE  = 'https://thumbnails.roblox.com/v1/users';
-
-  // Cache the proxy that worked first; reuse for later calls
-  let workingProxy = null;
+  // Any proxy works for GETs — race them all
+  const GET_PROXIES = [
+    url => 'https://corsproxy.io/?url=' + encodeURIComponent(url),
+    url => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(url),
+    url => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url),
+  ];
+  const USERS_API  = 'https://users.roblox.com/v1/usernames/users';
+  const THUMB_BASE = 'https://thumbnails.roblox.com/v1/users';
 
   function withTimeout(promise, ms) {
     let timer;
@@ -608,27 +611,34 @@
     return Promise.race([promise, t]).finally(() => clearTimeout(timer));
   }
 
-  async function proxyFetch(url, init = {}, timeoutMs = 7000) {
-    // Try cached proxy first (fast path)
-    if (workingProxy) {
-      try {
-        const res = await withTimeout(fetch(workingProxy(url), init), timeoutMs);
-        if (res.ok) return res;
-      } catch (_) { workingProxy = null; }
-    }
-    // Race all proxies — first success wins
-    const attempts = PROXIES.map(wrap =>
-      withTimeout(fetch(wrap(url), init), timeoutMs).then(res => {
+  async function getJson(url, timeoutMs = 8000) {
+    const attempts = GET_PROXIES.map(wrap =>
+      withTimeout(fetch(wrap(url)), timeoutMs).then(async res => {
         if (!res.ok) throw new Error('HTTP ' + res.status);
-        workingProxy = wrap;
-        return res;
+        return res.json();
       })
     );
     try {
       return await Promise.any(attempts);
-    } catch (e) {
+    } catch (_) {
       throw new Error('Network blocked — try again');
     }
+  }
+
+  async function postJson(url, body, timeoutMs = 8000) {
+    let lastErr;
+    for (const proxy of POST_PROXIES) {
+      try {
+        const res = await withTimeout(fetch(proxy + encodeURIComponent(url), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        }), timeoutMs);
+        if (!res.ok) { lastErr = new Error('HTTP ' + res.status); continue; }
+        return await res.json();
+      } catch (e) { lastErr = e; }
+    }
+    throw lastErr || new Error('Network blocked — try again');
   }
 
   let currentUserId      = '';
@@ -687,25 +697,19 @@
   copyBtn.addEventListener('click', copyImage);
 
   async function lookupUser(username) {
-    const res = await proxyFetch(USERS_API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ usernames: [username], excludeBannedUsers: false })
-    });
-    const data = await res.json();
-    if (!data.data || !data.data.length) throw new Error(`User "${username}" not found`);
+    const data = await postJson(USERS_API, { usernames: [username], excludeBannedUsers: false });
+    if (!data || !data.data) throw new Error('Bad response — try again');
+    if (!data.data.length) throw new Error(`User "${username}" not found`);
     return data.data[0];
   }
 
   async function getAvatarUrl(userId, size, view) {
-    // view: avatar | avatar-bust | avatar-headshot
     const endpoint = view === 'full' ? 'avatar'
                    : view === 'bust' ? 'avatar-bust'
                    : 'avatar-headshot';
     const url = `${THUMB_BASE}/${endpoint}?userIds=${userId}&size=${size}x${size}&format=Png&isCircular=false`;
-    const res = await proxyFetch(url);
-    const data = await res.json();
-    if (!data.data || !data.data[0] || data.data[0].state !== 'Completed') {
+    const data = await getJson(url);
+    if (!data || !data.data || !data.data[0] || data.data[0].state !== 'Completed') {
       throw new Error('Avatar not ready — try again');
     }
     return data.data[0].imageUrl;
@@ -725,7 +729,7 @@
   async function loadImage(url) {
     // Try direct first (rbxcdn allows CORS), then race all proxies in parallel
     try { return await loadOne(url); } catch (_) {}
-    const attempts = PROXIES.map(wrap => loadOne(wrap(url)));
+    const attempts = GET_PROXIES.map(wrap => loadOne(wrap(url)));
     try {
       return await Promise.any(attempts);
     } catch (_) {
