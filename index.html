@@ -17,6 +17,9 @@
   <meta id="twTitle"       name="twitter:title"      content="">
   <meta id="twImage"       name="twitter:image"      content="">
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Pinterest's official widget script — registers data-pin-* attributes
+       with Pinterest's extension so hover-pin uses the right URL. -->
+  <script async defer src="//assets.pinterest.com/js/pinit.js"></script>
   <style>
     :root {
       --bg:           #FFFFFF;
@@ -301,21 +304,19 @@
     .action-row button svg { transition: transform 0.2s var(--ease); }
     .action-row button:hover svg { transform: translateY(-1px); }
 
-    /* Outfits gallery */
-    .outfits-section {
-      padding: 12px 16px 14px;
-      border-bottom: 1px solid var(--border);
-      transition: border-color 0.35s var(--ease);
-      animation: fadeInUp 0.4s var(--ease) both;
-    }
-    .outfits-section[hidden] { display: none; }
-    .outfits-title {
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.6px;
-      text-transform: uppercase;
-      color: var(--text);
-      margin-bottom: 8px;
+    /* Outfits accordion */
+    #outfitsDetails[hidden] { display: none; }
+    .outfits-count {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 1px 6px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0;
+      color: var(--text-3);
+      background: var(--bg-sub);
+      border: 1px solid var(--border);
+      border-radius: 10px;
     }
     .outfits-grid {
       display: grid;
@@ -598,12 +599,15 @@
     </div>
   </div>
 
-  <div class="outfits-section" id="outfitsSection" hidden>
-    <div class="outfits-title">Outfits</div>
-    <div class="outfits-grid" id="outfitsGrid"></div>
-  </div>
 
   <div class="settings">
+
+    <details id="outfitsDetails" hidden>
+      <summary>Outfits <span class="outfits-count" id="outfitsCount"></span></summary>
+      <div class="details-body">
+        <div class="outfits-grid" id="outfitsGrid"></div>
+      </div>
+    </details>
 
     <details open>
       <summary>Image</summary>
@@ -612,8 +616,8 @@
           <div class="row-label">Quality</div>
           <select class="select-field" id="quality">
             <option value="420">420 px</option>
-            <option value="720" selected>720 px</option>
-            <option value="1024">1024 px</option>
+            <option value="720">720 px</option>
+            <option value="1024" selected>1024 px</option>
           </select>
         </div>
         <div class="row">
@@ -819,8 +823,9 @@
   const avatarLink      = document.getElementById('avatarLink');
   const canvasWrap      = document.getElementById('canvasWrap');
   const pinBtn          = document.getElementById('pinBtn');
-  const outfitsSection  = document.getElementById('outfitsSection');
+  const outfitsDetails  = document.getElementById('outfitsDetails');
   const outfitsGrid     = document.getElementById('outfitsGrid');
+  const outfitsCount    = document.getElementById('outfitsCount');
   const baseHrefEl      = document.getElementById('baseHref');
 
   // Outfits cache: userId → array of { id, name, thumbUrl }
@@ -1016,8 +1021,9 @@
   }
 
   async function loadOutfitsFor(userId) {
-    outfitsSection.hidden = true;
+    outfitsDetails.hidden = true;
     outfitsGrid.innerHTML = '';
+    outfitsCount.textContent = '';
 
     const cacheKey = String(userId);
     let outfits = outfitsCache.get(cacheKey);
@@ -1062,7 +1068,8 @@
     }
 
     renderOutfits(outfits);
-    outfitsSection.hidden = false;
+    outfitsCount.textContent = outfits.length;
+    outfitsDetails.hidden = false;
   }
 
   function renderOutfits(outfits) {
