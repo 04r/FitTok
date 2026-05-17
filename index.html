@@ -871,14 +871,14 @@
   pinBtn.addEventListener('click', pinToPinterest);
 
   function pinToPinterest() {
-    if (!currentUserId) return;
+    if (!currentUserId || !currentImageUrl) return;
     const profileUrl = `https://www.roblox.com/users/${currentUserId}/profile`;
     const desc       = `user: ${currentUsername}`;
-    const media      = canvas.toDataURL('image/png');
-    // Pinterest's official create-pin URL — they accept url+media+description as params.
-    // The pin's "Visit website" button is guaranteed to be the `url` param.
-    const pinUrl = `https://www.pinterest.com/pin/create/button/?url=${encodeURIComponent(profileUrl)}&media=${encodeURIComponent(media)}&description=${encodeURIComponent(desc)}`;
-    // Pinterest pin-creator window
+    // Use the live Roblox CDN image URL (NOT the data URI) — Pinterest needs
+    // an HTTP URL for `media`, and data URIs blow past URL length limits.
+    // Caveat: this pins the raw avatar (no custom overlay/bg). The "Visit
+    // website" link still goes to the Roblox profile thanks to `url=`.
+    const pinUrl = `https://www.pinterest.com/pin/create/button/?url=${encodeURIComponent(profileUrl)}&media=${encodeURIComponent(currentImageUrl)}&description=${encodeURIComponent(desc)}`;
     window.open(pinUrl, 'pinterest', 'width=750,height=620,scrollbars=yes,resizable=yes');
   }
 
