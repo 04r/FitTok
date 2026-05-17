@@ -199,15 +199,26 @@
     }
 
     .canvas-card canvas,
-    .canvas-card #avatarImg {
+    .canvas-card img {
       width: 100%;
       height: 100%;
       object-fit: contain;
       display: block;
     }
 
-    .canvas-card #avatarImg.loaded {
+    .canvas-card img {
       animation: scaleIn 0.5s var(--ease) both;
+    }
+
+    /* Dim existing content during fetch, fade back in when new arrives */
+    .canvas-card .avatar-link,
+    .canvas-card canvas {
+      transition: opacity 0.25s var(--ease), filter 0.25s var(--ease);
+    }
+    .canvas-card.fetching .avatar-link,
+    .canvas-card.fetching canvas {
+      opacity: 0.35;
+      filter: blur(1px);
     }
 
     .canvas-card a.avatar-link {
@@ -498,9 +509,7 @@
         <div class="empty-sub">Enter a username to begin</div>
       </div>
       <canvas id="avatarCanvas" style="display:none;"></canvas>
-      <a class="avatar-link" id="avatarLink" href="#" target="_blank" rel="noopener" style="display:none;">
-        <img id="avatarImg" alt="" />
-      </a>
+      <a class="avatar-link" id="avatarLink" href="#" target="_blank" rel="noopener" data-pin-do="buttonPin" style="display:none;"></a>
       <div class="loading-bar" id="loadingBar"></div>
     </div>
 
@@ -737,7 +746,7 @@
   const textShadow      = document.getElementById('textShadow');
   const shadowColorRow  = document.getElementById('shadowColorRow');
   const avatarLink      = document.getElementById('avatarLink');
-  const avatarImg       = document.getElementById('avatarImg');
+  const canvasWrap      = document.getElementById('canvasWrap');
 
   enableBg.addEventListener('change', () => {
     bgColorRow.style.display = enableBg.checked ? 'flex' : 'none';
@@ -978,20 +987,8 @@
       const profileUrl = `https://www.roblox.com/users/${currentUserId}/profile`;
       const pinTitle = `user: ${currentUsername}`;
 
-      avatarImg.src = dataUrl;
-      avatarImg.alt = pinTitle;
-      avatarImg.title = pinTitle;
-      avatarImg.setAttribute('data-pin-url', profileUrl);
-      avatarImg.setAttribute('data-pin-description', pinTitle);
-      avatarImg.setAttribute('data-pin-media', dataUrl);
-
-      avatarLink.href = profileUrl;
-      avatarLink.title = pinTitle;
-      avatarLink.style.display = 'block';
-
-      // Pinterest's "Save" extension reads page-level og:url / canonical FIRST,
-      // before image-level data-pin-url. So overwrite the page's meta tags to
-      // point at the Roblox profile, not 04r.github.io.
+      // Update page-level meta BEFORE injecting the new img — some Pinterest
+      // extensions read window.location + og:url at the moment of the scan.
       document.getElementById('canonicalLink').href = profileUrl;
       document.getElementById('ogUrl').setAttribute('content', profileUrl);
       document.getElementById('ogTitle').setAttribute('content', pinTitle);
@@ -1000,15 +997,35 @@
       document.getElementById('twUrl').setAttribute('content', profileUrl);
       document.getElementById('twTitle').setAttribute('content', pinTitle);
       document.getElementById('twImage').setAttribute('content', dataUrl);
-      // Also rewrite the document title — some extensions read this as fallback
       document.title = pinTitle;
+
+      // Mirror the pin attributes on the anchor too — some extensions read
+      // these off the wrapping link rather than the img.
+      avatarLink.href = profileUrl;
+      avatarLink.title = pinTitle;
+      avatarLink.setAttribute('data-pin-url', profileUrl);
+      avatarLink.setAttribute('data-pin-href', profileUrl);
+      avatarLink.setAttribute('data-pin-media', dataUrl);
+      avatarLink.setAttribute('data-pin-description', pinTitle);
+      avatarLink.style.display = 'block';
+
+      // Replace the <img> element completely so the Pinterest extension
+      // re-scans the page and picks up the fresh data-pin-* attributes
+      // (some extensions cache attribute values from initial DOM scan).
+      const newImg = document.createElement('img');
+      newImg.src = dataUrl;
+      newImg.alt = pinTitle;
+      newImg.title = pinTitle;
+      newImg.setAttribute('data-pin-url', profileUrl);
+      newImg.setAttribute('data-pin-href', profileUrl);
+      newImg.setAttribute('data-pin-media', dataUrl);
+      newImg.setAttribute('data-pin-description', pinTitle);
+      // Wipe the old img if any, then insert the new one
+      avatarLink.innerHTML = '';
+      avatarLink.appendChild(newImg);
 
       placeholder.style.display = 'none';
       canvas.style.display = 'none';
-      // retrigger image fade-in animation
-      avatarImg.classList.remove('loaded');
-      void avatarImg.offsetWidth;
-      avatarImg.classList.add('loaded');
       downloadBtn.classList.add('visible');
       copyBtn.classList.add('visible');
     } catch(e) {
@@ -1042,6 +1059,8 @@
   function setLoading(on) {
     generateBtn.disabled = on;
     loadingBar.style.display = on ? 'block' : 'none';
+    // Dim+blur existing avatar while a new one is being fetched
+    canvasWrap.classList.toggle('fetching', on);
   }
 
   function showError(msg) {
