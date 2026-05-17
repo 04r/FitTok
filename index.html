@@ -591,11 +591,56 @@
     localStorage.setItem('theme', next);
   });
 
-  // All GET-based through roproxy.com — no preflight, no POST, no rate-limit
-  // sharing with corsproxy.io (which gets 429'd by Roblox constantly).
-  const THUMB_BASE  = 'https://thumbnails.roproxy.com/v1/users';
-  const SEARCH_API  = 'https://users.roproxy.com/v1/users/search';
-  const USER_BY_ID  = 'https://users.roproxy.com/v1/users';
+  // Thumbnails: roproxy GET — no preflight, no rate-limit issues.
+  const THUMB_BASE = 'https://thumbnails.roproxy.com/v1/users';
+
+  // User lookup: scrape the public profile HTML page instead of hitting the JSON API.
+  // The www.roblox.com web frontend is a totally separate rate-limit bucket from
+  // users.roblox.com (where corsproxy.io's IP is permanently 429'd). The profile
+  // URL also redirects from previous usernames to the canonical user → previous-name
+  // search works for free.
+  function profileUrl(username) {
+    return `https://www.roblox.com/users/profile?username=${encodeURIComponent(username)}`;
+  }
+  // Returns [proxyUrl, parseFn(response) => { html, finalUrl, status }]
+  function profileProxies(username) {
+    const target = profileUrl(username);
+    return [
+      {
+        url: `https://api.allorigins.win/get?url=${encodeURIComponent(target)}`,
+        async parse(res) {
+          const j = await res.json();
+          return { html: j.contents || '', finalUrl: j.status?.url || '', status: j.status?.http_code || 0 };
+        }
+      },
+      {
+        url: `https://corsproxy.io/?url=${encodeURIComponent(target)}`,
+        async parse(res) {
+          return {
+            html: await res.text(),
+            finalUrl: res.headers.get('x-final-url') || '',
+            status: res.status
+          };
+        }
+      },
+      {
+        url: `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(target)}`,
+        async parse(res) {
+          return { html: await res.text(), finalUrl: '', status: res.status };
+        }
+      },
+    ];
+  }
+
+  // ─── lookup cache (kills rate-limit issues on repeat searches) ───
+  const userCache = new Map();
+  try {
+    const stored = JSON.parse(localStorage.getItem('userCache') || '{}');
+    for (const [k, v] of Object.entries(stored)) userCache.set(k, v);
+  } catch {}
+  function saveCache() {
+    try { localStorage.setItem('userCache', JSON.stringify(Object.fromEntries(userCache))); } catch {}
+  }
 
   // Highest size the API will return for each endpoint
   const API_MAX_SIZE = { full: 720, bust: 420, headshot: 720 };
@@ -655,26 +700,70 @@
   downloadBtn.addEventListener('click', downloadImage);
   copyBtn.addEventListener('click', copyImage);
 
-  async function lookupUser(username) {
-    // GET search via roproxy — no preflight, dedicated proxy IP (not rate-limited like corsproxy)
-    const url = `${SEARCH_API}?keyword=${encodeURIComponent(username)}&limit=25`;
-    const res = await fetch(url);
-    if (!res.ok) {
-      if (res.status === 429) throw new Error('Rate limited — wait a few seconds and retry');
-      throw new Error('Lookup failed — try again');
+  function parseProfileHtml(html, finalUrl, inputUsername) {
+    // 1. Best case: profile-header div has structured data attributes
+    const header = html.match(/data-profileuserid="(\d+)"[^>]*?data-name="([^"]+)"[^>]*?data-displayname="([^"]+)"/i)
+                || html.match(/data-displayname="([^"]+)"[^>]*?data-name="([^"]+)"[^>]*?data-profileuserid="(\d+)"/i);
+    if (header) {
+      // Two regex variants put fields in different orders — detect by which one matched
+      const isFirst = /data-profileuserid="\d+"[^>]*?data-name=/i.test(html);
+      const [id, name, displayName] = isFirst
+        ? [header[1], header[2], header[3]]
+        : [header[3], header[2], header[1]];
+      return { id, name, displayName };
     }
-    const data = await res.json();
-    if (!data || !Array.isArray(data.data)) throw new Error('Bad response');
 
+    // 2. Fallback: pull ID from canonical URL (in og:url meta or the redirect target)
+    const idFromUrl  = finalUrl.match(/\/users\/(\d+)\/profile/);
+    const idFromHtml = html.match(/\/users\/(\d+)\/profile/);
+    const id = (idFromUrl && idFromUrl[1]) || (idFromHtml && idFromHtml[1]);
+    if (!id) return null;
+
+    // Display name from <title> — format varies, strip common suffixes
+    const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
+    let displayName = inputUsername;
+    if (titleMatch) {
+      displayName = titleMatch[1]
+        .replace(/\s*-\s*Roblox.*$/i, '')
+        .replace(/'s Profile.*$/i, '')
+        .trim() || inputUsername;
+    }
+    return { id, name: inputUsername, displayName };
+  }
+
+  async function lookupUser(username) {
     const lower = username.toLowerCase();
-    // Prefer exact username match; fall back to display-name match
-    let hit = data.data.find(u => (u.name || '').toLowerCase() === lower);
-    if (!hit) hit = data.data.find(u => (u.displayName || '').toLowerCase() === lower);
 
-    if (!hit) throw new Error(`User "${username}" not found`);
+    // 1. Cache hit — zero network
+    if (userCache.has(lower)) return userCache.get(lower);
 
-    // search endpoint returns {id, name, displayName} — that's all we need
-    return { id: hit.id, name: hit.name, displayName: hit.displayName || hit.name };
+    // 2. Try each proxy; fall through on rate-limit / network error
+    let lastErr = null;
+    for (const { url, parse } of profileProxies(username)) {
+      let payload;
+      try {
+        const res = await fetch(url);
+        if (res.status === 429 || res.status === 503) { lastErr = new Error('rate limited'); continue; }
+        if (!res.ok)                                   { lastErr = new Error(`HTTP ${res.status}`); continue; }
+        payload = await parse(res);
+      } catch (e) { lastErr = e; continue; }
+
+      // Definitive "not found" from the upstream Roblox page
+      if (payload.status === 404 || /Page cannot be found|isn't a Roblox member/i.test(payload.html)) {
+        throw new Error(`User "${username}" not found`);
+      }
+
+      const parsed = parseProfileHtml(payload.html, payload.finalUrl, username);
+      if (!parsed) { lastErr = new Error('parse failed'); continue; }
+
+      const user = { id: parsed.id, name: parsed.name, displayName: parsed.displayName || parsed.name };
+      // Cache under both the input (could be a previous name) and the canonical name
+      userCache.set(lower, user);
+      userCache.set(user.name.toLowerCase(), user);
+      saveCache();
+      return user;
+    }
+    throw new Error('All proxies failed — try again in a moment');
   }
 
   async function getAvatarUrl(userId, size, view) {
