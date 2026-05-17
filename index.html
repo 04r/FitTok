@@ -66,23 +66,97 @@
       color: var(--text);
       -webkit-font-smoothing: antialiased;
       min-height: 100vh;
-      display: flex;
-      align-items: flex-start;
-      justify-content: center;
-      gap: 14px;
+      /* Grid keeps main card perfectly centered no matter what's to either side */
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+      align-items: start;
       padding: 24px 16px;
+      gap: 14px;
       transition: background 0.35s var(--ease), color 0.35s var(--ease);
     }
 
-    /* Outfits side panel — sits to the right of the main card when present */
+    .app { grid-column: 2; }
+
+    /* Right-side strip holds the outfits toggle + panel.
+       Main app stays dead-center because this lives in the 3rd grid column. */
+    .outfits-strip {
+      grid-column: 3;
+      justify-self: start;
+      align-self: stretch;
+      display: flex;
+      gap: 14px;
+      align-items: stretch;
+    }
+    .outfits-strip[hidden] { display: none; }
+
+    /* Tall vertical toggle button — matches main card's height via align-self: stretch */
+    .outfits-toggle {
+      width: 52px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      cursor: pointer;
+      color: var(--text);
+      font-family: inherit;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 0;
+      transition: background 0.25s var(--ease), border-color 0.25s var(--ease), transform 0.2s var(--ease), box-shadow 0.25s var(--ease);
+      animation: scaleIn 0.4s var(--ease) both;
+      flex-shrink: 0;
+    }
+    .outfits-toggle:hover {
+      background: var(--bg-sub);
+      border-color: var(--text-2);
+      box-shadow: 0 6px 22px rgba(0,0,0,0.06);
+    }
+    [data-theme="dark"] .outfits-toggle:hover { box-shadow: 0 6px 22px rgba(0,0,0,0.4); }
+    .outfits-toggle:active { transform: scale(0.97); }
+    .outfits-toggle.is-open { background: var(--bg-sub); border-color: var(--text-2); }
+
+    .outfits-toggle-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+      color: var(--text);
+    }
+    .outfits-toggle-count {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      background: var(--bg-sub);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+    }
+    .outfits-toggle.is-open .outfits-toggle-count {
+      background: var(--surface);
+    }
+    .outfits-toggle svg {
+      color: var(--text-3);
+      transition: transform 0.3s var(--ease), color 0.2s var(--ease);
+    }
+    .outfits-toggle:hover svg { color: var(--text); }
+    .outfits-toggle.is-open svg { transform: rotate(180deg); color: var(--text); }
+
+    /* Outfits side panel — slides out to the right of the toggle when opened */
     .side-panel {
-      width: 100%;
-      max-width: 420px;
+      width: 380px;
+      max-width: 380px;
+      max-height: calc(100vh - 48px);
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 14px;
       padding: 14px 16px 16px;
       flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
       animation: scaleIn 0.4s var(--ease) both;
       transition: background 0.35s var(--ease), border-color 0.35s var(--ease);
     }
@@ -117,10 +191,38 @@
       letter-spacing: 0;
     }
 
-    /* Mobile: stack side panel below the main card */
+    /* Mobile: stack everything vertically, full-width */
     @media (max-width: 900px) {
-      body { flex-direction: column; align-items: center; }
-      .side-panel { max-width: 420px; }
+      body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .outfits-strip {
+        flex-direction: column;
+        width: 100%;
+        max-width: 420px;
+        align-items: stretch;
+      }
+      .outfits-toggle {
+        width: 100%;
+        padding: 10px 14px;
+        flex-direction: row;
+        justify-content: space-between;
+      }
+      .outfits-toggle-label {
+        writing-mode: horizontal-tb;
+        transform: none;
+        font-size: 11px;
+      }
+      .outfits-toggle.is-open svg { transform: rotate(90deg); }
+      .side-panel {
+        width: 100%;
+        max-width: 420px;
+      }
+      .outfits-grid {
+        max-height: 60vh;
+      }
     }
 
     .app {
@@ -375,7 +477,17 @@
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 6px;
+      overflow-y: auto;
+      flex: 1 1 auto;
+      min-height: 0;
+      /* subtle custom scrollbar in webkit */
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-mid) transparent;
+      padding-right: 2px;
     }
+    .outfits-grid::-webkit-scrollbar { width: 6px; }
+    .outfits-grid::-webkit-scrollbar-track { background: transparent; }
+    .outfits-grid::-webkit-scrollbar-thumb { background: var(--border-mid); border-radius: 3px; }
     .outfit-tile {
       position: relative;
       aspect-ratio: 1;
@@ -778,12 +890,21 @@
 
 </div>
 
-<aside class="side-panel" id="outfitsPanel" hidden>
-  <div class="side-panel-header">
-    <div class="side-panel-title">Outfits <span class="side-panel-count" id="sidePanelCount"></span></div>
-  </div>
-  <div class="outfits-grid" id="outfitsGrid"></div>
-</aside>
+<div class="outfits-strip" id="outfitsStrip" hidden>
+  <button class="outfits-toggle" id="outfitsToggle" type="button" aria-label="Toggle outfits panel">
+    <span class="outfits-toggle-label">Outfits</span>
+    <span class="outfits-toggle-count" id="outfitsToggleCount">0</span>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <polyline points="9 18 15 12 9 6"/>
+    </svg>
+  </button>
+  <aside class="side-panel" id="outfitsPanel" hidden>
+    <div class="side-panel-header">
+      <div class="side-panel-title">Outfits <span class="side-panel-count" id="sidePanelCount"></span></div>
+    </div>
+    <div class="outfits-grid" id="outfitsGrid"></div>
+  </aside>
+</div>
 
 <script>
   // If someone landed here via a Pinterest pin click, redirect to the real
@@ -898,11 +1019,22 @@
   const shadowColorRow  = document.getElementById('shadowColorRow');
   const avatarLink      = document.getElementById('avatarLink');
   const canvasWrap      = document.getElementById('canvasWrap');
-  const outfitsGrid     = document.getElementById('outfitsGrid');
-  const outfitsPanel    = document.getElementById('outfitsPanel');
-  const sidePanelCount  = document.getElementById('sidePanelCount');
-  const pinBtn          = document.getElementById('pinBtn');
-  const baseHrefEl      = document.getElementById('baseHref');
+  const outfitsStrip       = document.getElementById('outfitsStrip');
+  const outfitsToggle      = document.getElementById('outfitsToggle');
+  const outfitsToggleCount = document.getElementById('outfitsToggleCount');
+  const outfitsGrid        = document.getElementById('outfitsGrid');
+  const outfitsPanel       = document.getElementById('outfitsPanel');
+  const sidePanelCount     = document.getElementById('sidePanelCount');
+  const pinBtn             = document.getElementById('pinBtn');
+  const baseHrefEl         = document.getElementById('baseHref');
+
+  // Outfits toggle: open / close the side panel; the strip itself is shown
+  // whenever the user has at least one public outfit.
+  outfitsToggle.addEventListener('click', () => {
+    const willOpen = outfitsPanel.hidden;
+    outfitsPanel.hidden = !willOpen;
+    outfitsToggle.classList.toggle('is-open', willOpen);
+  });
 
   // Pinterest button — opens Pinterest's official pin creator with the real
   // Roblox URL and CDN avatar URL. Guaranteed to link to Roblox, no github.
@@ -1118,8 +1250,11 @@
   }
 
   async function loadOutfitsFor(userId) {
+    outfitsStrip.hidden = true;
     outfitsPanel.hidden = true;
+    outfitsToggle.classList.remove('is-open');
     outfitsGrid.innerHTML = '';
+    outfitsToggleCount.textContent = '';
     sidePanelCount.textContent = '';
 
     const cacheKey = String(userId);
@@ -1165,8 +1300,10 @@
     }
 
     renderOutfits(outfits);
+    outfitsToggleCount.textContent = outfits.length;
     sidePanelCount.textContent = outfits.length;
-    outfitsPanel.hidden = false;
+    outfitsStrip.hidden = false;
+    // Side panel stays closed initially — user opens via toggle
   }
 
   function renderOutfits(outfits) {
@@ -1353,6 +1490,7 @@
       canvas.style.display = 'none';
       downloadBtn.classList.add('visible');
       copyBtn.classList.add('visible');
+      pinBtn.classList.add('visible');
     } catch(e) {
       showError(e.message);
     } finally {
