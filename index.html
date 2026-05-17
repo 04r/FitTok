@@ -58,6 +58,7 @@
     @keyframes scaleIn      { from { opacity: 0; transform: scale(0.96); }     to { opacity: 1; transform: scale(1); } }
     @keyframes slideDown    { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
     @keyframes spin180      { from { transform: rotate(0); }                   to { transform: rotate(180deg); } }
+    @keyframes spin         { to   { transform: rotate(360deg); } }
 
     body {
       font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -66,23 +67,23 @@
       color: var(--text);
       -webkit-font-smoothing: antialiased;
       min-height: 100vh;
-      /* Grid keeps main card perfectly centered no matter what's to either side */
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-      align-items: start;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
       padding: 24px 16px;
-      gap: 14px;
       transition: background 0.35s var(--ease), color 0.35s var(--ease);
     }
 
-    .app { grid-column: 2; }
-
-    /* Right-side strip holds the outfits toggle + panel.
-       Main app stays dead-center because this lives in the 3rd grid column. */
+    /* Outfits strip is absolutely positioned to the right of the centered
+       main card. Absolute positioning means it never affects main card's
+       centering — the main card stays dead-center in the viewport no matter
+       what's in the strip. */
     .outfits-strip {
-      grid-column: 3;
-      justify-self: start;
-      align-self: stretch;
+      position: absolute;
+      top: 24px; /* match body padding-top */
+      left: 50%;
+      margin-left: 224px; /* half main width (210) + gap (14) */
       display: flex;
       gap: 14px;
       align-items: stretch;
@@ -191,22 +192,20 @@
       letter-spacing: 0;
     }
 
-    /* Mobile: stack everything vertically, full-width */
+    /* Mobile: stack everything vertically, full-width, no absolute positioning */
     @media (max-width: 900px) {
-      body {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-      }
       .outfits-strip {
+        position: static;
+        margin: 14px 0 0 0;
         flex-direction: column;
         width: 100%;
         max-width: 420px;
         align-items: stretch;
+        height: auto !important; /* override JS-set height */
       }
       .outfits-toggle {
         width: 100%;
-        padding: 10px 14px;
+        padding: 12px 14px;
         flex-direction: row;
         justify-content: space-between;
       }
@@ -219,9 +218,7 @@
       .side-panel {
         width: 100%;
         max-width: 420px;
-      }
-      .outfits-grid {
-        max-height: 60vh;
+        max-height: 70vh;
       }
     }
 
@@ -471,6 +468,13 @@
     .action-row button.btn-pinterest:focus-visible {
       outline: 2px solid #E60023;
       outline-offset: 2px;
+    }
+    .action-row button.btn-pinterest:disabled {
+      opacity: 0.85;
+      cursor: progress;
+    }
+    .action-row button .spinner {
+      animation: spin 0.8s linear infinite;
     }
 
     .outfits-grid {
@@ -1034,20 +1038,80 @@
     const willOpen = outfitsPanel.hidden;
     outfitsPanel.hidden = !willOpen;
     outfitsToggle.classList.toggle('is-open', willOpen);
+    syncStripHeight(); // re-sync after panel toggle
   });
 
-  // Pinterest button — opens Pinterest's official pin creator with the real
-  // Roblox URL and CDN avatar URL. Guaranteed to link to Roblox, no github.
-  pinBtn.addEventListener('click', () => {
-    if (!currentUsername || !currentImageUrl) return;
-    const target = `https://www.roblox.com/users/profile?username=${encodeURIComponent(currentUsername)}`;
+  // Keep outfits strip's height in sync with the main card. The strip is
+  // absolute-positioned (so it doesn't affect main centering), which means
+  // its height won't auto-stretch — we set it manually here.
+  const appElement = document.querySelector('.app');
+  const mqMobile = window.matchMedia('(max-width: 900px)');
+  function syncStripHeight() {
+    if (mqMobile.matches) {
+      outfitsStrip.style.height = ''; // mobile uses CSS-driven height
+    } else {
+      outfitsStrip.style.height = appElement.offsetHeight + 'px';
+    }
+  }
+  if (window.ResizeObserver) {
+    new ResizeObserver(syncStripHeight).observe(appElement);
+  }
+  window.addEventListener('resize', syncStripHeight);
+  mqMobile.addEventListener('change', syncStripHeight);
+  syncStripHeight();
+
+  // Pinterest button — uploads the customized canvas (with username overlay
+  // + custom background) to catbox.moe so Pinterest can fetch it, then opens
+  // Pinterest's pin creator with the Roblox URL and the hosted image.
+  //   ✓ Pinned image includes username text overlay
+  //   ✓ Pin links to roblox.com (not github)
+  //   ✗ Requires one upload network round-trip (~1-2s)
+  async function uploadCanvas() {
+    return new Promise((resolve, reject) => {
+      canvas.toBlob(async (blob) => {
+        if (!blob) return reject(new Error('canvas blob failed'));
+        const fd = new FormData();
+        fd.append('reqtype', 'fileupload');
+        fd.append('fileToUpload', blob, `${currentUsername || 'avatar'}.png`);
+        try {
+          const res = await fetch('https://catbox.moe/user/api.php', { method: 'POST', body: fd });
+          if (!res.ok) return reject(new Error('upload HTTP ' + res.status));
+          const url = (await res.text()).trim();
+          if (!/^https?:\/\//.test(url)) return reject(new Error('bad upload response: ' + url));
+          resolve(url);
+        } catch (e) { reject(e); }
+      }, 'image/png');
+    });
+  }
+
+  pinBtn.addEventListener('click', async () => {
+    if (!currentUsername) return;
+    const original = pinBtn.innerHTML;
+    pinBtn.disabled = true;
+    pinBtn.innerHTML = '<svg class="spinner" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><circle cx="12" cy="12" r="9" opacity=".25"/><path d="M12 3a9 9 0 019 9" /></svg> Uploading…';
+
+    let mediaUrl;
+    try {
+      mediaUrl = await uploadCanvas(); // Upload composed image (with overlay)
+    } catch (_) {
+      // Fall back to raw CDN avatar if catbox upload fails (CORS/network)
+      mediaUrl = currentImageUrl;
+    }
+
+    const profileUrl = `https://www.roblox.com/users/profile?username=${encodeURIComponent(currentUsername)}`;
     const params = new URLSearchParams({
-      url: target,
-      media: currentImageUrl,
+      url: profileUrl,
+      media: mediaUrl,
       description: `user: ${currentUsername}`
     });
-    const pinUrl = `https://www.pinterest.com/pin/create/button/?${params.toString()}`;
-    window.open(pinUrl, 'pinterest', 'width=760,height=640,scrollbars=yes,resizable=yes');
+    window.open(
+      `https://www.pinterest.com/pin/create/button/?${params.toString()}`,
+      'pinterest',
+      'width=760,height=640,scrollbars=yes,resizable=yes'
+    );
+
+    pinBtn.disabled = false;
+    pinBtn.innerHTML = original;
   });
 
   // Outfits cache: userId → array of { id, name, thumbUrl }
