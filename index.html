@@ -16,7 +16,7 @@
   <meta id="twUrl"         name="twitter:url"        content="">
   <meta id="twTitle"       name="twitter:title"      content="">
   <meta id="twImage"       name="twitter:image"      content="">
-  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Caveat:wght@500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <!-- Pinterest's official widget script — registers data-pin-* attributes
        with Pinterest's extension so hover-pin uses the right URL. -->
   <script async defer src="//assets.pinterest.com/js/pinit.js"></script>
@@ -91,105 +91,61 @@
     }
     .outfits-strip[hidden] { display: none; }
 
-    /* Prominent square toggle. Sized like the user's sketch, positioned
-       vertically near the middle of the avatar preview area. */
-    .outfits-toggle-wrap {
-      position: relative;
-      padding-top: 70px; /* room above for the handdrawn hint */
-    }
+    /* Minimal floating circle toggle — count + small chevron, nothing else */
     .outfits-toggle {
-      width: 92px;
-      height: 92px;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      padding: 0;
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 14px;
       cursor: pointer;
       color: var(--text);
+      font-family: inherit;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
+      gap: 2px;
       transition: background 0.25s var(--ease), border-color 0.25s var(--ease), transform 0.2s var(--ease), box-shadow 0.25s var(--ease);
       animation: scaleIn 0.4s var(--ease) both;
-      position: relative;
     }
     .outfits-toggle:hover {
       background: var(--bg-sub);
       border-color: var(--text-2);
-      box-shadow: 0 6px 22px rgba(0,0,0,0.08);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+      transform: translateY(-1px);
     }
-    [data-theme="dark"] .outfits-toggle:hover { box-shadow: 0 6px 22px rgba(0,0,0,0.5); }
+    [data-theme="dark"] .outfits-toggle:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.5); }
     .outfits-toggle:active { transform: scale(0.94); }
     .outfits-toggle.is-open { background: var(--bg-sub); border-color: var(--text-2); }
-    .outfits-toggle svg.chevron {
-      color: var(--text-2);
-      width: 22px;
-      height: 22px;
+    .outfits-toggle .count {
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1;
+      letter-spacing: -0.2px;
+      color: var(--text);
+    }
+    .outfits-toggle .chevron {
+      width: 11px;
+      height: 11px;
+      color: var(--text-3);
       transition: transform 0.3s var(--ease), color 0.2s var(--ease);
     }
-    .outfits-toggle:hover svg.chevron { color: var(--text); }
-    .outfits-toggle.is-open svg.chevron { transform: rotate(180deg); color: var(--text); }
-    /* Count badge on the corner of the button */
-    .outfits-toggle .badge {
-      position: absolute;
-      top: -8px;
-      right: -8px;
-      min-width: 22px;
-      height: 22px;
-      padding: 0 7px;
-      background: var(--accent);
-      color: var(--accent-text);
-      border-radius: 11px;
-      font-size: 11px;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      letter-spacing: 0;
-      border: 2px solid var(--bg);
-    }
-
-    /* Handdrawn "outfits" annotation pointing at the toggle button */
-    .outfits-hint {
-      position: absolute;
-      top: -8px;
-      left: 0;
-      width: 120px;
-      height: 80px;
-      pointer-events: none;
-      color: var(--text-2);
-      opacity: 0;
-      animation: fadeIn 0.6s var(--ease) 0.3s forwards;
-      transition: opacity 0.3s var(--ease);
-    }
-    .outfits-toggle-wrap.panel-open .outfits-hint {
-      opacity: 0 !important;
-      animation: none;
-    }
-    .outfits-hint text {
-      font-family: 'Caveat', cursive;
-      font-size: 26px;
-      font-weight: 500;
-      fill: currentColor;
-    }
-    .outfits-hint path {
-      stroke: currentColor;
-      stroke-width: 1.6;
-      fill: none;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-    }
+    .outfits-toggle:hover .chevron { color: var(--text); }
+    .outfits-toggle.is-open .chevron { transform: rotate(180deg); color: var(--text); }
 
     /* Outfits side panel — slides out to the right of the toggle when opened.
        Constrained height so the grid inside scrolls when there are many outfits. */
     .side-panel {
-      width: 300px;
-      max-width: 300px;
-      height: 440px;
+      width: 380px;
+      max-width: 380px;
+      height: 500px;
       max-height: calc(100vh - 48px);
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 14px;
-      padding: 14px 16px 16px;
+      padding: 18px 20px 20px;
       flex-shrink: 0;
       display: flex;
       flex-direction: column;
@@ -203,8 +159,8 @@
       align-items: center;
       justify-content: space-between;
       gap: 8px;
-      padding-bottom: 10px;
-      margin-bottom: 10px;
+      padding-bottom: 12px;
+      margin-bottom: 14px;
       border-bottom: 1px solid var(--border);
     }
     .side-panel-title {
@@ -228,7 +184,7 @@
       letter-spacing: 0;
     }
 
-    /* Mobile: stack everything vertically, full-width, no absolute positioning */
+    /* Mobile: stack vertically, full-width, no absolute positioning */
     @media (max-width: 900px) {
       .outfits-strip {
         position: static;
@@ -237,32 +193,23 @@
         width: 100%;
         max-width: 420px;
         align-items: stretch;
-        height: auto !important;
-      }
-      .outfits-toggle-wrap {
-        padding-top: 0;
-        display: flex;
-        align-items: center;
         gap: 12px;
       }
-      .outfits-hint {
-        position: static;
-        width: 100px;
-        height: 36px;
-        flex-shrink: 0;
-      }
-      .outfits-hint text { font-size: 18px; }
-      .outfits-hint path { display: none; }
       .outfits-toggle {
-        flex: 1;
-        height: 44px;
-        width: auto;
-        border-radius: 10px;
+        width: 100%;
+        height: 48px;
+        border-radius: 12px;
+        flex-direction: row;
+        gap: 8px;
+        align-self: stretch;
       }
-      .outfits-toggle.is-open svg.chevron { transform: rotate(90deg); }
+      .outfits-toggle .count { font-size: 13px; }
+      .outfits-toggle .chevron { width: 12px; height: 12px; }
+      .outfits-toggle.is-open .chevron { transform: rotate(90deg); }
       .side-panel {
         width: 100%;
         max-width: 420px;
+        height: auto;
         max-height: 70vh;
       }
     }
@@ -525,11 +472,11 @@
     .outfits-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
+      gap: 18px;
       overflow-y: auto;
       flex: 1 1 auto;
       min-height: 0;
-      padding: 4px 6px 8px 2px;
+      padding: 4px 8px 8px 4px;
       /* subtle custom scrollbar in webkit */
       scrollbar-width: thin;
       scrollbar-color: var(--border-mid) transparent;
@@ -940,21 +887,12 @@
 </div>
 
 <div class="outfits-strip" id="outfitsStrip" hidden>
-  <div class="outfits-toggle-wrap">
-    <svg class="outfits-hint" viewBox="0 0 120 80" aria-hidden="true">
-      <text x="2" y="22">outfits</text>
-      <!-- Wavy curving line from text down to button -->
-      <path d="M 52 30 C 65 32, 72 40, 78 52 C 82 60, 88 66, 96 72"/>
-      <!-- Arrowhead -->
-      <path d="M 90 66 L 98 73 L 91 76"/>
+  <button class="outfits-toggle" id="outfitsToggle" type="button" aria-label="Toggle outfits panel">
+    <span class="count" id="outfitsToggleCount">0</span>
+    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <polyline points="9 18 15 12 9 6"/>
     </svg>
-    <button class="outfits-toggle" id="outfitsToggle" type="button" aria-label="Toggle outfits panel">
-      <span class="badge" id="outfitsToggleCount">0</span>
-      <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <polyline points="9 18 15 12 9 6"/>
-      </svg>
-    </button>
-  </div>
+  </button>
   <aside class="side-panel" id="outfitsPanel" hidden>
     <div class="side-panel-header">
       <div class="side-panel-title">Outfits <span class="side-panel-count" id="sidePanelCount"></span></div>
@@ -1087,12 +1025,10 @@
 
   // Outfits toggle: open / close the side panel; the strip is shown
   // whenever the user has at least one public outfit.
-  const toggleWrap = outfitsToggle.closest('.outfits-toggle-wrap');
   outfitsToggle.addEventListener('click', () => {
     const willOpen = outfitsPanel.hidden;
     outfitsPanel.hidden = !willOpen;
     outfitsToggle.classList.toggle('is-open', willOpen);
-    toggleWrap.classList.toggle('panel-open', willOpen);
   });
 
   // Pinterest button — uploads the customized canvas (with username overlay
@@ -1109,18 +1045,41 @@
     });
   }
 
-  async function tryCatboxViaProxy(blob) {
+  // telegra.ph — anonymous, has CORS, persistent
+  async function tryTelegraph(blob) {
     const fd = new FormData();
-    fd.append('reqtype', 'fileupload');
-    fd.append('fileToUpload', blob, `${currentUsername || 'avatar'}.png`);
-    const target = encodeURIComponent('https://catbox.moe/user/api.php');
-    const res = await fetch(`https://corsproxy.io/?url=${target}`, { method: 'POST', body: fd });
-    if (!res.ok) throw new Error('catbox-proxy HTTP ' + res.status);
-    const url = (await res.text()).trim();
-    if (!/^https?:\/\//.test(url)) throw new Error('catbox-proxy bad response: ' + url.slice(0, 100));
+    fd.append('file', blob, `${currentUsername || 'avatar'}.png`);
+    const res = await fetch('https://telegra.ph/upload', { method: 'POST', body: fd });
+    if (!res.ok) throw new Error('telegraph HTTP ' + res.status);
+    const data = await res.json();
+    if (!Array.isArray(data) || !data[0] || !data[0].src) throw new Error('telegraph bad response');
+    return 'https://telegra.ph' + data[0].src;
+  }
+
+  // uguu.se — anonymous, has CORS, ephemeral (~3 hours; long enough for Pinterest scrape)
+  async function tryUguu(blob) {
+    const fd = new FormData();
+    fd.append('files[]', blob, `${currentUsername || 'avatar'}.png`);
+    const res = await fetch('https://uguu.se/upload', { method: 'POST', body: fd });
+    if (!res.ok) throw new Error('uguu HTTP ' + res.status);
+    const data = await res.json();
+    const url = data && data.files && data.files[0] && data.files[0].url;
+    if (!url || !/^https?:\/\//.test(url)) throw new Error('uguu bad response');
     return url;
   }
 
+  // 0x0.st — anonymous, has CORS, persistent
+  async function try0x0st(blob) {
+    const fd = new FormData();
+    fd.append('file', blob, `${currentUsername || 'avatar'}.png`);
+    const res = await fetch('https://0x0.st', { method: 'POST', body: fd });
+    if (!res.ok) throw new Error('0x0 HTTP ' + res.status);
+    const url = (await res.text()).trim();
+    if (!/^https?:\/\//.test(url)) throw new Error('0x0 bad response');
+    return url;
+  }
+
+  // tmpfiles.org — anonymous, has CORS, 1-hour retention
   async function tryTmpfiles(blob) {
     const fd = new FormData();
     fd.append('file', blob, `${currentUsername || 'avatar'}.png`);
@@ -1128,30 +1087,24 @@
     if (!res.ok) throw new Error('tmpfiles HTTP ' + res.status);
     const data = await res.json();
     if (!data || !data.data || !data.data.url) throw new Error('tmpfiles bad response');
-    // Convert HTML preview URL to direct-download URL
     return data.data.url.replace('://tmpfiles.org/', '://tmpfiles.org/dl/');
-  }
-
-  async function tryCatboxDirect(blob) {
-    const fd = new FormData();
-    fd.append('reqtype', 'fileupload');
-    fd.append('fileToUpload', blob, `${currentUsername || 'avatar'}.png`);
-    const res = await fetch('https://catbox.moe/user/api.php', { method: 'POST', body: fd });
-    if (!res.ok) throw new Error('catbox-direct HTTP ' + res.status);
-    const url = (await res.text()).trim();
-    if (!/^https?:\/\//.test(url)) throw new Error('catbox-direct bad response');
-    return url;
   }
 
   async function uploadCanvas() {
     const blob = await canvasToBlob();
-    const services = [tryCatboxViaProxy, tryTmpfiles, tryCatboxDirect];
-    let lastErr;
+    const services = [tryTelegraph, tryUguu, try0x0st, tryTmpfiles];
+    const errors = [];
     for (const svc of services) {
-      try { return await svc(blob); }
-      catch (e) { lastErr = e; }
+      try {
+        const url = await svc(blob);
+        console.info('[pin] upload OK via', svc.name, '→', url);
+        return url;
+      } catch (e) {
+        errors.push(`${svc.name}: ${e.message}`);
+      }
     }
-    throw lastErr || new Error('all upload services failed');
+    console.warn('[pin] all upload services failed:', errors);
+    throw new Error('all upload services failed');
   }
 
   pinBtn.addEventListener('click', async () => {
@@ -1159,13 +1112,15 @@
     const original = pinBtn.innerHTML;
     pinBtn.disabled = true;
     pinBtn.innerHTML = '<svg class="spinner" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><circle cx="12" cy="12" r="9" opacity=".25"/><path d="M12 3a9 9 0 019 9" /></svg> Uploading…';
+    hideError();
 
-    let mediaUrl;
+    let mediaUrl, uploadFailed = false;
     try {
       mediaUrl = await uploadCanvas(); // Upload composed image (with overlay)
     } catch (_) {
-      // Fall back to raw CDN avatar if catbox upload fails (CORS/network)
+      // All upload services failed — pin with raw avatar and tell the user
       mediaUrl = currentImageUrl;
+      uploadFailed = true;
     }
 
     const profileUrl = `https://www.roblox.com/users/profile?username=${encodeURIComponent(currentUsername)}`;
@@ -1182,6 +1137,9 @@
 
     pinBtn.disabled = false;
     pinBtn.innerHTML = original;
+    if (uploadFailed) {
+      showError('Upload failed — pinned without overlay. Try again in a moment.');
+    }
   });
 
   // Outfits cache: userId → array of { id, name, thumbUrl }
@@ -1387,7 +1345,6 @@
     outfitsStrip.hidden = true;
     outfitsPanel.hidden = true;
     outfitsToggle.classList.remove('is-open');
-    toggleWrap.classList.remove('panel-open');
     outfitsGrid.innerHTML = '';
     outfitsToggleCount.textContent = '';
     sidePanelCount.textContent = '';
