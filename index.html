@@ -1215,15 +1215,17 @@
       document.getElementById('twImage').setAttribute('content', dataUrl);
       document.title = pinTitle;
 
-      // The real win: rewrite the URL bar's PATH to look like a Roblox
-      // profile URL. Pinterest extensions read window.location.href and
-      // ignore data-pin-url — but they can't ignore the actual URL.
-      // The 404.html sibling file catches anyone visiting the pin and
-      // redirects them to the real Roblox profile.
-      const fakePath = `/users/${currentUserId}/profile`;
-      if (window.location.pathname !== fakePath) {
-        history.replaceState({}, '', fakePath);
-      }
+      // Rewrite the URL bar's PATH to look like a Roblox profile URL.
+      // Pinterest extensions read window.location.href and ignore
+      // data-pin-url — but they can't ignore the actual URL.
+      // Wrapped in try because file:// / sandboxed contexts disallow it.
+      try {
+        const fakePath = `/users/${currentUserId}/profile`;
+        if (window.location.protocol.startsWith('http') &&
+            window.location.pathname !== fakePath) {
+          history.replaceState({}, '', fakePath);
+        }
+      } catch (_) { /* not allowed in this context — no-op */ }
 
       // Mirror the pin attributes on the anchor too — some extensions read
       // these off the wrapping link rather than the img.
