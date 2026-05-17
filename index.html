@@ -591,12 +591,10 @@
     localStorage.setItem('theme', next);
   });
 
-  // Thumbnails: roproxy.com handles GET with CORS perfectly.
-  // Username lookup: roproxy.com returns 404 on OPTIONS (no POST support),
-  //   so we use corsproxy.io which correctly forwards POST bodies.
-  const THUMB_BASE       = 'https://thumbnails.roproxy.com/v1/users';
-  const USERS_API_ROPROXY = 'https://users.roproxy.com/v1/usernames/users';
-  const USERS_API_CORS    = 'https://corsproxy.io/?url=' + encodeURIComponent('https://users.roblox.com/v1/usernames/users');
+  // Thumbnails: roproxy.com handles GET with CORS.
+  // Username lookup (POST): corsproxy.io — roproxy doesn't support POST/preflight.
+  const THUMB_BASE = 'https://thumbnails.roproxy.com/v1/users';
+  const USERS_API  = 'https://corsproxy.io/?url=' + encodeURIComponent('https://users.roblox.com/v1/usernames/users');
 
   // Highest size the API will return for each endpoint
   const API_MAX_SIZE = { full: 720, bust: 420, headshot: 720 };
@@ -656,24 +654,14 @@
   downloadBtn.addEventListener('click', downloadImage);
   copyBtn.addEventListener('click', copyImage);
 
-  async function postUsers(url, username) {
-    const res = await fetch(url, {
+  async function lookupUser(username) {
+    const res = await fetch(USERS_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-requested-with': 'XMLHttpRequest' },
       body: JSON.stringify({ usernames: [username], excludeBannedUsers: false })
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
-  }
-
-  async function lookupUser(username) {
-    // Try roproxy first; if CORS preflight fails (404), fall through to corsproxy.io
-    let data;
-    try {
-      data = await postUsers(USERS_API_ROPROXY, username);
-    } catch {
-      data = await postUsers(USERS_API_CORS, username);
-    }
+    if (!res.ok) throw new Error('Lookup failed — try again');
+    const data = await res.json();
     if (!data || !data.data) throw new Error('Bad response');
     if (!data.data.length) throw new Error(`User "${username}" not found`);
     return data.data[0];
