@@ -727,6 +727,17 @@
 </div>
 
 <script>
+  // If someone landed here via a Pinterest pin click (URL like /users/12345/profile),
+  // redirect them straight to the real Roblox profile. Stops the tool from loading
+  // for those visitors — they came to see a Roblox user, not the generator.
+  // Append #stay to the URL to bypass this redirect during local testing.
+  (function pinRedirect() {
+    const m = window.location.pathname.match(/^\/users\/(\d+)\/profile\/?$/);
+    if (m && !window.location.hash.includes('stay')) {
+      window.location.replace(`https://www.roblox.com/users/${m[1]}/profile`);
+    }
+  })();
+
   const themeToggle = document.getElementById('themeToggle');
   const saved = localStorage.getItem('theme') || 'dark';
   document.documentElement.setAttribute('data-theme', saved);
@@ -1197,13 +1208,22 @@
       document.getElementById('canonicalLink').href = profileUrl;
       document.getElementById('ogUrl').setAttribute('content', profileUrl);
       document.getElementById('ogTitle').setAttribute('content', pinTitle);
-      // og:image must be a real HTTP URL for Pinterest to use it
-      document.getElementById('ogImage').setAttribute('content', currentImageUrl);
+      document.getElementById('ogImage').setAttribute('content', dataUrl);
       document.getElementById('ogDescription').setAttribute('content', pinTitle);
       document.getElementById('twUrl').setAttribute('content', profileUrl);
       document.getElementById('twTitle').setAttribute('content', pinTitle);
-      document.getElementById('twImage').setAttribute('content', currentImageUrl);
+      document.getElementById('twImage').setAttribute('content', dataUrl);
       document.title = pinTitle;
+
+      // The real win: rewrite the URL bar's PATH to look like a Roblox
+      // profile URL. Pinterest extensions read window.location.href and
+      // ignore data-pin-url — but they can't ignore the actual URL.
+      // The 404.html sibling file catches anyone visiting the pin and
+      // redirects them to the real Roblox profile.
+      const fakePath = `/users/${currentUserId}/profile`;
+      if (window.location.pathname !== fakePath) {
+        history.replaceState({}, '', fakePath);
+      }
 
       // Mirror the pin attributes on the anchor too — some extensions read
       // these off the wrapping link rather than the img.
@@ -1215,22 +1235,16 @@
       avatarLink.setAttribute('data-pin-description', pinTitle);
       avatarLink.style.display = 'block';
 
-      // Replace the <img> element completely so the Pinterest extension
-      // re-scans the page and picks up the fresh data-pin-* attributes.
-      //
-      // CRITICAL: src MUST be a real HTTP URL (rbxcdn.com), NOT a data URI.
-      // Most Pinterest extensions silently fail on data URIs and fall back
-      // to the page URL — this is what was breaking extension hover-pin.
-      // Trade-off: the visible preview won't show custom overlay/bg, but
-      // Download + Copy still composite them via the canvas.
+      // Replace the <img> with a fresh element so any Pinterest-style
+      // extension re-scans and picks up the latest data-pin-* attributes.
+      // src is the composed canvas (data URI) so customizations show.
       const newImg = document.createElement('img');
-      newImg.src = currentImageUrl; // real rbxcdn.com URL — Pinterest can read this
-      newImg.crossOrigin = 'anonymous';
+      newImg.src = dataUrl; // canvas-composed image — customizations baked in
       newImg.alt = pinTitle;
       newImg.title = pinTitle;
       newImg.setAttribute('data-pin-url', profileUrl);
       newImg.setAttribute('data-pin-href', profileUrl);
-      newImg.setAttribute('data-pin-media', currentImageUrl);
+      newImg.setAttribute('data-pin-media', dataUrl);
       newImg.setAttribute('data-pin-description', pinTitle);
       // Wipe the old img if any, then insert the new one
       avatarLink.innerHTML = '';
