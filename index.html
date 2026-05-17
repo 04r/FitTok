@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>HD Avatar</title>
+  <!-- Pinterest URL override — Pinterest's scraper respects <base href> as the page identity -->
+  <base id="baseHref" href="https://www.roblox.com/">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23000'/%3E%3C/svg%3E">
   <!-- Pinterest / OG tags — overwritten dynamically when an avatar is generated -->
   <link id="canonicalLink" rel="canonical" href="">
@@ -299,6 +301,64 @@
     .action-row button svg { transition: transform 0.2s var(--ease); }
     .action-row button:hover svg { transform: translateY(-1px); }
 
+    /* Outfits gallery */
+    .outfits-section {
+      padding: 12px 16px 14px;
+      border-bottom: 1px solid var(--border);
+      transition: border-color 0.35s var(--ease);
+      animation: fadeInUp 0.4s var(--ease) both;
+    }
+    .outfits-section[hidden] { display: none; }
+    .outfits-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+    .outfits-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+    .outfit-tile {
+      position: relative;
+      aspect-ratio: 1;
+      background: var(--bg-sub);
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: border-color 0.2s var(--ease), transform 0.2s var(--ease), background 0.35s var(--ease);
+    }
+    .outfit-tile:hover { border-color: var(--text-2); transform: translateY(-1px); }
+    .outfit-tile:active { transform: scale(0.97); }
+    .outfit-tile.active { border-color: var(--accent); border-width: 2px; }
+    .outfit-tile img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+    .outfit-tile .tile-label {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      padding: 4px 6px;
+      font-size: 9.5px;
+      font-weight: 600;
+      color: var(--text);
+      background: linear-gradient(to top, var(--surface) 70%, transparent);
+      text-align: center;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      opacity: 0;
+      transition: opacity 0.2s var(--ease);
+    }
+    .outfit-tile:hover .tile-label,
+    .outfit-tile.active .tile-label { opacity: 1; }
+
     /* Settings */
     .settings {
       padding: 4px 16px 12px;
@@ -529,7 +589,18 @@
         </svg>
         Copy
       </button>
+      <button id="pinBtn" title="Pin to Pinterest (link goes to Roblox profile)">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M12 0C5.4 0 0 5.4 0 12c0 5.1 3.1 9.4 7.6 11.2-.1-1-.2-2.4 0-3.5.2-1 1.5-6.3 1.5-6.3s-.4-.8-.4-1.9c0-1.8 1-3.1 2.3-3.1 1.1 0 1.6.8 1.6 1.8 0 1.1-.7 2.7-1 4.2-.3 1.3.6 2.3 1.9 2.3 2.3 0 4-2.4 4-5.9 0-3.1-2.2-5.3-5.4-5.3-3.7 0-5.8 2.7-5.8 5.5 0 1.1.4 2.3.9 2.9.1.1.1.2.1.4-.1.4-.3 1.3-.4 1.5-.1.2-.2.3-.5.2-1.6-.7-2.6-3.1-2.6-4.9 0-4 2.9-7.6 8.3-7.6 4.3 0 7.7 3.1 7.7 7.2 0 4.3-2.7 7.8-6.5 7.8-1.3 0-2.5-.7-2.9-1.5l-.8 3c-.3 1.1-1 2.4-1.5 3.3 1.1.4 2.3.5 3.5.5 6.6 0 12-5.4 12-12S18.6 0 12 0z"/>
+        </svg>
+        Pin
+      </button>
     </div>
+  </div>
+
+  <div class="outfits-section" id="outfitsSection" hidden>
+    <div class="outfits-title">Outfits</div>
+    <div class="outfits-grid" id="outfitsGrid"></div>
   </div>
 
   <div class="settings">
@@ -747,6 +818,25 @@
   const shadowColorRow  = document.getElementById('shadowColorRow');
   const avatarLink      = document.getElementById('avatarLink');
   const canvasWrap      = document.getElementById('canvasWrap');
+  const pinBtn          = document.getElementById('pinBtn');
+  const outfitsSection  = document.getElementById('outfitsSection');
+  const outfitsGrid     = document.getElementById('outfitsGrid');
+  const baseHrefEl      = document.getElementById('baseHref');
+
+  // Outfits cache: userId → array of { id, name, thumbUrl }
+  const outfitsCache = new Map();
+  try {
+    const stored = JSON.parse(localStorage.getItem('outfitsCache') || '{}');
+    for (const [k, v] of Object.entries(stored)) outfitsCache.set(k, v);
+  } catch {}
+  function saveOutfitsCache() {
+    try { localStorage.setItem('outfitsCache', JSON.stringify(Object.fromEntries(outfitsCache))); } catch {}
+  }
+
+  // Tracks which outfit (if any) is currently active in the preview
+  let currentOutfitId = 'default';
+  // Holds the default avatar URL so clicking "Default" tile can restore it
+  let defaultImageUrl = '';
 
   enableBg.addEventListener('change', () => {
     bgColorRow.style.display = enableBg.checked ? 'flex' : 'none';
@@ -778,6 +868,19 @@
   generateBtn.addEventListener('click', generate);
   downloadBtn.addEventListener('click', downloadImage);
   copyBtn.addEventListener('click', copyImage);
+  pinBtn.addEventListener('click', pinToPinterest);
+
+  function pinToPinterest() {
+    if (!currentUserId) return;
+    const profileUrl = `https://www.roblox.com/users/${currentUserId}/profile`;
+    const desc       = `user: ${currentUsername}`;
+    const media      = canvas.toDataURL('image/png');
+    // Pinterest's official create-pin URL — they accept url+media+description as params.
+    // The pin's "Visit website" button is guaranteed to be the `url` param.
+    const pinUrl = `https://www.pinterest.com/pin/create/button/?url=${encodeURIComponent(profileUrl)}&media=${encodeURIComponent(media)}&description=${encodeURIComponent(desc)}`;
+    // Pinterest pin-creator window
+    window.open(pinUrl, 'pinterest', 'width=750,height=620,scrollbars=yes,resizable=yes');
+  }
 
   function parseProfileHtml(html, finalUrl, inputUsername) {
     // 1. Best case: profile-header div has structured data attributes
@@ -900,6 +1003,116 @@
       const size = parseInt(document.getElementById('quality').value, 10) || 720;
       const view = document.getElementById('viewType').value;
       currentImageUrl    = await getAvatarUrl(user.id, size, view);
+      defaultImageUrl    = currentImageUrl;
+      currentOutfitId    = 'default';
+      await redraw();
+      // Fire-and-forget outfits — failure (private inventory) is silent
+      loadOutfitsFor(user.id).catch(() => {});
+    } catch (e) {
+      showError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadOutfitsFor(userId) {
+    outfitsSection.hidden = true;
+    outfitsGrid.innerHTML = '';
+
+    const cacheKey = String(userId);
+    let outfits = outfitsCache.get(cacheKey);
+
+    if (!outfits) {
+      // Fetch outfit list
+      const listUrl = `https://avatar.roproxy.com/v1/users/${userId}/outfits?page=1&itemsPerPage=25&isEditable=true`;
+      let listData;
+      try {
+        const res = await fetchWithTimeout(listUrl, 8000);
+        if (res.status === 403) return; // private inventory — silent
+        if (!res.ok) return;
+        listData = await res.json();
+      } catch { return; }
+      if (!listData || !Array.isArray(listData.data) || !listData.data.length) return;
+
+      const ids = listData.data.map(o => o.id);
+      // Fetch all outfit thumbnails in one batched call
+      const thumbUrl = `https://thumbnails.roproxy.com/v1/users/outfits?userOutfitIds=${ids.join(',')}&size=420x420&format=Png&isCircular=false`;
+      let thumbData;
+      try {
+        const res = await fetchWithTimeout(thumbUrl, 8000);
+        if (!res.ok) return;
+        thumbData = await res.json();
+      } catch { return; }
+      if (!thumbData || !Array.isArray(thumbData.data)) return;
+
+      const thumbById = new Map(thumbData.data.map(t => [t.targetId, t]));
+      outfits = listData.data
+        .map(o => {
+          const t = thumbById.get(o.id);
+          if (!t || t.state !== 'Completed') return null;
+          // Upgrade the CDN URL to higher resolution (same trick as avatars)
+          const hi = t.imageUrl.replace(/\/\d+\/\d+\//, '/720/720/');
+          return { id: o.id, name: o.name, thumbUrl: hi };
+        })
+        .filter(Boolean);
+
+      if (!outfits.length) return;
+      outfitsCache.set(cacheKey, outfits);
+      saveOutfitsCache();
+    }
+
+    renderOutfits(outfits);
+    outfitsSection.hidden = false;
+  }
+
+  function renderOutfits(outfits) {
+    outfitsGrid.innerHTML = '';
+    // First tile: Default (current avatar)
+    outfitsGrid.appendChild(makeTile({
+      id: 'default',
+      name: 'Default',
+      thumbUrl: defaultImageUrl,
+      isDefault: true,
+    }));
+    outfits.forEach(o => outfitsGrid.appendChild(makeTile(o)));
+    syncActiveTile();
+  }
+
+  function makeTile({ id, name, thumbUrl, isDefault }) {
+    const tile = document.createElement('div');
+    tile.className = 'outfit-tile';
+    tile.dataset.outfitId = id;
+
+    const img = document.createElement('img');
+    img.src = thumbUrl;
+    img.alt = name;
+    img.loading = 'lazy';
+    img.crossOrigin = 'anonymous';
+    tile.appendChild(img);
+
+    const label = document.createElement('div');
+    label.className = 'tile-label';
+    label.textContent = name;
+    tile.appendChild(label);
+
+    tile.addEventListener('click', () => pickOutfit(id, thumbUrl, isDefault));
+    return tile;
+  }
+
+  function syncActiveTile() {
+    outfitsGrid.querySelectorAll('.outfit-tile').forEach(t => {
+      t.classList.toggle('active', t.dataset.outfitId === String(currentOutfitId));
+    });
+  }
+
+  async function pickOutfit(outfitId, thumbUrl, isDefault) {
+    if (!thumbUrl) return;
+    if (currentOutfitId === outfitId) return;
+    currentOutfitId = outfitId;
+    syncActiveTile();
+    setLoading(true);
+    try {
+      currentImageUrl = isDefault ? defaultImageUrl : thumbUrl;
       await redraw();
     } catch (e) {
       showError(e.message);
@@ -987,6 +1200,11 @@
       const profileUrl = `https://www.roblox.com/users/${currentUserId}/profile`;
       const pinTitle = `user: ${currentUsername}`;
 
+      // <base href> is the strongest signal — tells the browser (and any
+      // scrapers including Pinterest) that this page's identity is the
+      // Roblox profile URL, not 04r.github.io.
+      baseHrefEl.href = profileUrl;
+
       // Update page-level meta BEFORE injecting the new img — some Pinterest
       // extensions read window.location + og:url at the moment of the scan.
       document.getElementById('canonicalLink').href = profileUrl;
@@ -1028,6 +1246,7 @@
       canvas.style.display = 'none';
       downloadBtn.classList.add('visible');
       copyBtn.classList.add('visible');
+      pinBtn.classList.add('visible');
     } catch(e) {
       showError(e.message);
     } finally {
