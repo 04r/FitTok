@@ -5,15 +5,29 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Redirecting…</title>
   <script>
-    // Pinterest pins from this tool look like https://04r.github.io/users/<id>/profile
-    // GitHub Pages serves this 404.html for those paths. Redirect to the real Roblox profile.
+    // Pinterest pins from this tool look like:
+    //   https://04r.github.io/users/profile?username=X   (current)
+    //   https://04r.github.io/users/<id>/profile         (legacy)
+    // GitHub Pages serves this 404.html for those paths.
+    // Redirect to the real Roblox profile.
     (function () {
+      // New username-based format
+      if (location.pathname === '/users/profile') {
+        var params = new URLSearchParams(location.search);
+        var u = params.get('username');
+        if (u) {
+          location.replace('https://www.roblox.com/users/profile?username=' + encodeURIComponent(u));
+          return;
+        }
+      }
+      // Legacy id-based format
       var m = location.pathname.match(/^\/users\/(\d+)\/profile\/?$/);
       if (m) {
         location.replace('https://www.roblox.com/users/' + m[1] + '/profile');
-      } else {
-        location.replace('/');
+        return;
       }
+      // Anything else → back to the tool
+      location.replace('/');
     })();
   </script>
   <meta http-equiv="refresh" content="0;url=/">

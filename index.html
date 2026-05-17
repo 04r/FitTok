@@ -74,6 +74,53 @@
       transition: background 0.35s var(--ease), color 0.35s var(--ease);
     }
 
+    /* Standalone outfits toggle — small floating button to the right of .app */
+    .outfits-toggle {
+      align-self: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 14px 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      cursor: pointer;
+      color: var(--text);
+      font-family: inherit;
+      transition: background 0.25s var(--ease), border-color 0.25s var(--ease), transform 0.2s var(--ease), box-shadow 0.25s var(--ease);
+      animation: scaleIn 0.4s var(--ease) both;
+      flex-shrink: 0;
+      min-width: 44px;
+    }
+    .outfits-toggle[hidden] { display: none; }
+    .outfits-toggle:hover {
+      background: var(--bg-sub);
+      border-color: var(--text-2);
+      transform: translateY(-1px);
+    }
+    .outfits-toggle:active { transform: scale(0.97); }
+    .outfits-toggle-label {
+      font-size: 9.5px;
+      font-weight: 700;
+      letter-spacing: 0.6px;
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+      color: var(--text);
+    }
+    .outfits-toggle-count {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text);
+      padding: 1px 6px;
+      background: var(--bg-sub);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+    .outfits-toggle svg { color: var(--text-3); }
+    .outfits-toggle:hover svg { color: var(--text); }
+
     /* Outfits side panel — sits to the right of the main card when expanded */
     .side-panel {
       width: 100%;
@@ -120,10 +167,23 @@
     }
     .side-panel-close:hover { background: var(--bg-sub); color: var(--text); border-color: var(--text-2); }
 
-    /* Mobile: stack side panel below the main card */
+    /* Mobile: stack toggle + side panel below the main card */
     @media (max-width: 900px) {
       body { flex-direction: column; align-items: center; }
       .side-panel { max-width: 420px; }
+      .outfits-toggle {
+        flex-direction: row;
+        width: 100%;
+        max-width: 420px;
+        padding: 10px 14px;
+        gap: 10px;
+        justify-content: space-between;
+      }
+      .outfits-toggle-label {
+        writing-mode: horizontal-tb;
+        transform: none;
+        font-size: 11px;
+      }
     }
 
     .app {
@@ -357,20 +417,6 @@
     .action-row button svg { transition: transform 0.2s var(--ease); }
     .action-row button:hover svg { transform: translateY(-1px); }
 
-    /* Outfits accordion */
-    #outfitsDetails[hidden] { display: none; }
-    .outfits-count {
-      display: inline-block;
-      margin-left: 6px;
-      padding: 1px 6px;
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: 0;
-      color: var(--text-3);
-      background: var(--bg-sub);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-    }
     .outfits-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -649,10 +695,6 @@
 
   <div class="settings">
 
-    <details id="outfitsDetails" hidden>
-      <summary>Outfits <span class="outfits-count" id="outfitsCount"></span></summary>
-    </details>
-
     <details>
       <summary>Image</summary>
       <div class="details-body">
@@ -776,6 +818,14 @@
 
 </div>
 
+<button class="outfits-toggle" id="outfitsToggle" hidden aria-label="Show outfits">
+  <span class="outfits-toggle-label">OUTFITS</span>
+  <span class="outfits-toggle-count" id="outfitsToggleCount">0</span>
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <polyline points="9 18 15 12 9 6"/>
+  </svg>
+</button>
+
 <aside class="side-panel" id="outfitsPanel" hidden>
   <div class="side-panel-header">
     <div class="side-panel-title">Outfits <span class="outfits-count" id="sidePanelCount"></span></div>
@@ -790,15 +840,25 @@
 </aside>
 
 <script>
-  // If someone landed here via a Pinterest pin click (URL like /users/12345/profile),
-  // redirect them straight to the real Roblox profile. Stops the tool from loading
-  // for those visitors — they came to see a Roblox user, not the generator.
+  // If someone landed here via a Pinterest pin click, redirect to the real
+  // Roblox profile. Matches both URL formats:
+  //   /users/profile?username=X   (current — username-based)
+  //   /users/<id>/profile         (legacy — id-based, back-compat for old pins)
   // Append #stay to the URL to bypass this redirect during local testing.
   (function pinRedirect() {
-    const m = window.location.pathname.match(/^\/users\/(\d+)\/profile\/?$/);
-    if (m && !window.location.hash.includes('stay')) {
-      window.location.replace(`https://www.roblox.com/users/${m[1]}/profile`);
+    if (window.location.hash.includes('stay')) return;
+    // New username-based format
+    if (window.location.pathname === '/users/profile') {
+      const params = new URLSearchParams(window.location.search);
+      const u = params.get('username');
+      if (u) {
+        window.location.replace(`https://www.roblox.com/users/profile?username=${encodeURIComponent(u)}`);
+        return;
+      }
     }
+    // Legacy id-based format
+    const m = window.location.pathname.match(/^\/users\/(\d+)\/profile\/?$/);
+    if (m) window.location.replace(`https://www.roblox.com/users/${m[1]}/profile`);
   })();
 
   const themeToggle = document.getElementById('themeToggle');
@@ -890,20 +950,22 @@
   const shadowColorRow  = document.getElementById('shadowColorRow');
   const avatarLink      = document.getElementById('avatarLink');
   const canvasWrap      = document.getElementById('canvasWrap');
-  const outfitsDetails  = document.getElementById('outfitsDetails');
-  const outfitsGrid     = document.getElementById('outfitsGrid');
-  const outfitsCount    = document.getElementById('outfitsCount');
-  const outfitsPanel    = document.getElementById('outfitsPanel');
-  const sidePanelCount  = document.getElementById('sidePanelCount');
-  const closeOutfitsPanel = document.getElementById('closeOutfitsPanel');
-  const baseHrefEl      = document.getElementById('baseHref');
+  const outfitsToggle      = document.getElementById('outfitsToggle');
+  const outfitsToggleCount = document.getElementById('outfitsToggleCount');
+  const outfitsGrid        = document.getElementById('outfitsGrid');
+  const outfitsPanel       = document.getElementById('outfitsPanel');
+  const sidePanelCount     = document.getElementById('sidePanelCount');
+  const closeOutfitsPanel  = document.getElementById('closeOutfitsPanel');
+  const baseHrefEl         = document.getElementById('baseHref');
 
-  // Outfits accordion toggle ↔ side panel sync
-  outfitsDetails.addEventListener('toggle', () => {
-    outfitsPanel.hidden = !outfitsDetails.open;
+  // Standalone outfits toggle ↔ side panel
+  outfitsToggle.addEventListener('click', () => {
+    outfitsPanel.hidden = false;
+    outfitsToggle.hidden = true;
   });
   closeOutfitsPanel.addEventListener('click', () => {
-    outfitsDetails.open = false; // triggers toggle event which hides the panel
+    outfitsPanel.hidden = true;
+    outfitsToggle.hidden = false;
   });
 
   // Outfits cache: userId → array of { id, name, thumbUrl }
@@ -1059,18 +1121,19 @@
     return loadOne(url);
   }
 
-  function rewritePinUrl(userId) {
-    // Aggressively rewrite the page URL so any Pinterest extension that
-    // reads window.location.href gets a Roblox-shaped path. The 404.html
-    // sibling file handles the redirect to the real Roblox profile when
-    // someone clicks the pin.
+  function rewritePinUrl(username) {
+    // Rewrite the page URL to mimic Roblox's own username-lookup URL format:
+    //   roblox.com/users/profile?username=X
+    // Our URL becomes:
+    //   04r.github.io/users/profile?username=X
+    // 404.html catches this and redirects to the real Roblox URL.
     try {
       if (!window.location.protocol.startsWith('http')) return;
-      const fakePath = `/users/${userId}/profile`;
-      if (window.location.pathname !== fakePath) {
-        history.replaceState({}, '', fakePath);
-        // Fire a synthetic event so extensions that listen for nav changes
-        // re-read window.location instead of using a stale cache.
+      const target = `/users/profile?username=${encodeURIComponent(username)}`;
+      const current = window.location.pathname + window.location.search;
+      if (current !== target) {
+        history.replaceState({}, '', target);
+        // Synthetic events for extensions that cache window.location
         try { window.dispatchEvent(new PopStateEvent('popstate')); } catch(_) {}
         try { window.dispatchEvent(new HashChangeEvent('hashchange')); } catch(_) {}
       }
@@ -1090,7 +1153,7 @@
       currentDisplayName = user.displayName || user.name;
       // Rewrite the URL bar IMMEDIATELY — before fetching the image — so
       // the Pinterest extension has the right URL by the time anything renders.
-      rewritePinUrl(user.id);
+      rewritePinUrl(user.name);
       const size = parseInt(document.getElementById('quality').value, 10) || 720;
       const view = document.getElementById('viewType').value;
       currentImageUrl    = await getAvatarUrl(user.id, size, view);
@@ -1107,11 +1170,10 @@
   }
 
   async function loadOutfitsFor(userId) {
-    outfitsDetails.hidden = true;
-    outfitsDetails.open  = false;
+    outfitsToggle.hidden = true;
     outfitsPanel.hidden  = true;
     outfitsGrid.innerHTML = '';
-    outfitsCount.textContent = '';
+    outfitsToggleCount.textContent = '';
     sidePanelCount.textContent = '';
 
     const cacheKey = String(userId);
@@ -1157,9 +1219,9 @@
     }
 
     renderOutfits(outfits);
-    outfitsCount.textContent = outfits.length;
+    outfitsToggleCount.textContent = outfits.length;
     sidePanelCount.textContent = outfits.length;
-    outfitsDetails.hidden = false;
+    outfitsToggle.hidden = false;
   }
 
   function renderOutfits(outfits) {
