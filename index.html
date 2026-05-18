@@ -901,154 +901,73 @@
   const pinBtn             = document.getElementById('pinBtn');
   const baseHrefEl         = document.getElementById('baseHref');
 
-  // Pinterest button — uploads the customized canvas (with username overlay
-  // + custom background) to a public image host so Pinterest can fetch it,
-  // then opens Pinterest's pin creator with the Roblox URL and hosted image.
+  // Pinterest button — uses Cloudinary's URL-based image transform to overlay
+  // the username text on top of the raw Roblox CDN image, server-side.
   //
-  // Tries multiple upload services in sequence (different CORS behaviors):
-  //   1. catbox.moe via corsproxy.io  (catbox has no CORS for uploads)
-  //   2. tmpfiles.org  (has CORS, but URL needs `/dl/` rewrite)
-  //   3. catbox.moe direct  (works in some browsers/contexts)
-  function canvasToBlob() {
-    return new Promise((resolve, reject) => {
-      canvas.toBlob(b => b ? resolve(b) : reject(new Error('canvas blob failed')), 'image/png');
-    });
+  // WHY this approach (after many failed attempts):
+  //   • No upload needed → no CORS issues, no region blocks, no waiting
+  //   • res.cloudinary.com is a major commercial CDN that's never blocked by
+  //     adblockers / regional filters (unlike catbox / 0x0 / telegra.ph etc.)
+  //   • The transform happens server-side at Cloudinary, Pinterest fetches
+  //     the final composed image just like any normal URL
+  //   • Limitation: overlay font is Arial (not the user's exact font choice),
+  //     and custom background color from canvas isn't reflected. But the
+  //     username TEXT — the thing the user cares about — IS in the pin image.
+
+  function cloudinaryEscape(text) {
+    // Cloudinary text escapes: commas, slashes, percent need special handling
+    return encodeURIComponent(text)
+      .replace(/%2F/g, '%252F')  // slash → double-encoded slash
+      .replace(/,/g, '%2C')      // comma must be percent-encoded (Cloudinary param separator)
+      .replace(/'/g, '%27');     // apostrophe
   }
 
-  // ── Image upload services, tried in order until one works ──
+  function buildPinMediaUrl() {
+    if (!currentImageUrl) return '';
+    // No overlay → just use the raw avatar URL (also a clean simple pin)
+    if (!enableOverlay.checked || !currentUsername) return currentImageUrl;
 
-  // catbox.moe via codetabs.com CORS proxy — codetabs forwards POST + multipart
-  async function tryCatboxCodetabs(blob) {
-    const fd = new FormData();
-    fd.append('reqtype', 'fileupload');
-    fd.append('fileToUpload', blob, `${currentUsername || 'avatar'}.png`);
-    const proxyUrl = 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent('https://catbox.moe/user/api.php');
-    const res = await fetch(proxyUrl, { method: 'POST', body: fd });
-    if (!res.ok) throw new Error('catbox-codetabs HTTP ' + res.status);
-    const url = (await res.text()).trim();
-    if (!/^https?:\/\/files\.catbox\.moe\//.test(url)) throw new Error('catbox-codetabs bad: ' + url.slice(0, 80));
-    return url;
+    // Read the user's overlay customizations
+    const position    = document.getElementById('position').value;
+    const fontSizePct = parseFloat(document.getElementById('fontSize').value) || 4.5;
+    const colorHex    = document.getElementById('textColor').value.replace('#', '');
+    const isBold      = document.getElementById('bold').checked;
+    const imageSize   = parseInt(document.getElementById('quality').value, 10) || 720;
+
+    // Build the text overlay transformation
+    const fontPx = Math.max(24, Math.floor(imageSize * fontSizePct / 100));
+    const gravityMap = {
+      'bottom-left':   'south_west',
+      'bottom-right':  'south_east',
+      'bottom-center': 'south',
+      'top-left':      'north_west',
+      'top-right':     'north_east',
+      'top-center':    'north',
+    };
+    const gravity   = gravityMap[position] || 'south_west';
+    const offset    = Math.floor(imageSize * 0.03);
+    const safeText  = cloudinaryEscape(currentUsername);
+    const weight    = isBold ? '_bold' : '';
+    const transform = `l_text:Arial_${fontPx}${weight}:${safeText},co_rgb:${colorHex},g_${gravity},x_${offset},y_${offset}`;
+
+    // Cloudinary "demo" cloud — public, supports remote URL fetch + transforms
+    return `https://res.cloudinary.com/demo/image/fetch/${transform}/${currentImageUrl}`;
   }
 
-  // catbox.moe via corsproxy.io — different proxy, different chance of working
-  async function tryCatboxCorsproxy(blob) {
-    const fd = new FormData();
-    fd.append('reqtype', 'fileupload');
-    fd.append('fileToUpload', blob, `${currentUsername || 'avatar'}.png`);
-    const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent('https://catbox.moe/user/api.php');
-    const res = await fetch(proxyUrl, { method: 'POST', body: fd });
-    if (!res.ok) throw new Error('catbox-corsproxy HTTP ' + res.status);
-    const url = (await res.text()).trim();
-    if (!/^https?:\/\/files\.catbox\.moe\//.test(url)) throw new Error('catbox-corsproxy bad: ' + url.slice(0, 80));
-    return url;
-  }
-
-  // 0x0.st — anonymous, has CORS, persistent
-  async function try0x0st(blob) {
-    const fd = new FormData();
-    fd.append('file', blob, `${currentUsername || 'avatar'}.png`);
-    const res = await fetch('https://0x0.st', { method: 'POST', body: fd });
-    if (!res.ok) throw new Error('0x0 HTTP ' + res.status);
-    const url = (await res.text()).trim();
-    if (!/^https?:\/\//.test(url)) throw new Error('0x0 bad response');
-    return url;
-  }
-
-  // uguu.se — anonymous, has CORS, ephemeral
-  async function tryUguu(blob) {
-    const fd = new FormData();
-    fd.append('files[]', blob, `${currentUsername || 'avatar'}.png`);
-    const res = await fetch('https://uguu.se/upload', { method: 'POST', body: fd });
-    if (!res.ok) throw new Error('uguu HTTP ' + res.status);
-    const data = await res.json();
-    const url = data && data.files && data.files[0] && data.files[0].url;
-    if (!url || !/^https?:\/\//.test(url)) throw new Error('uguu bad response');
-    return url;
-  }
-
-  // tmpfiles.org — anonymous, has CORS, 1-hour retention
-  async function tryTmpfiles(blob) {
-    const fd = new FormData();
-    fd.append('file', blob, `${currentUsername || 'avatar'}.png`);
-    const res = await fetch('https://tmpfiles.org/api/v1/upload', { method: 'POST', body: fd });
-    if (!res.ok) throw new Error('tmpfiles HTTP ' + res.status);
-    const data = await res.json();
-    if (!data || !data.data || !data.data.url) throw new Error('tmpfiles bad response');
-    return data.data.url.replace('://tmpfiles.org/', '://tmpfiles.org/dl/');
-  }
-
-  // telegra.ph — anonymous, has CORS (regionally blocked in TR/etc)
-  async function tryTelegraph(blob) {
-    const fd = new FormData();
-    fd.append('file', blob, `${currentUsername || 'avatar'}.png`);
-    const res = await fetch('https://telegra.ph/upload', { method: 'POST', body: fd });
-    if (!res.ok) throw new Error('telegraph HTTP ' + res.status);
-    const data = await res.json();
-    if (!Array.isArray(data) || !data[0] || !data[0].src) throw new Error('telegraph bad response');
-    return 'https://telegra.ph' + data[0].src;
-  }
-
-  async function uploadCanvas() {
-    const blob = await canvasToBlob();
-    // Catbox via proxies first (catbox itself is reliable; need a working CORS
-    // proxy to relay POST). Then direct-CORS hosts. Telegraph last because
-    // it's regionally blocked in Turkey (where the user is).
-    const services = [
-      tryCatboxCodetabs,
-      tryCatboxCorsproxy,
-      try0x0st,
-      tryUguu,
-      tryTmpfiles,
-      tryTelegraph,
-    ];
-    const errors = [];
-    for (const svc of services) {
-      try {
-        const url = await svc(blob);
-        console.info('[pin] upload OK via', svc.name, '→', url);
-        return url;
-      } catch (e) {
-        console.warn('[pin]', svc.name, 'failed:', e.message);
-        errors.push(`${svc.name}: ${e.message}`);
-      }
-    }
-    console.warn('[pin] all upload services failed:', errors);
-    throw new Error('all upload services failed');
-  }
-
-  pinBtn.addEventListener('click', async () => {
+  pinBtn.addEventListener('click', () => {
     if (!currentUsername) return;
-    const original = pinBtn.innerHTML;
-    pinBtn.disabled = true;
-    pinBtn.innerHTML = '<svg class="spinner" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><circle cx="12" cy="12" r="9" opacity=".25"/><path d="M12 3a9 9 0 019 9" /></svg> Uploading…';
-    hideError();
-
-    let mediaUrl, uploadFailed = false;
-    try {
-      mediaUrl = await uploadCanvas(); // Upload composed image (with overlay)
-    } catch (_) {
-      // All upload services failed — pin with raw avatar and tell the user
-      mediaUrl = currentImageUrl;
-      uploadFailed = true;
-    }
-
+    const mediaUrl = buildPinMediaUrl();
     const profileUrl = `https://www.roblox.com/users/profile?username=${encodeURIComponent(currentUsername)}`;
     const params = new URLSearchParams({
       url: profileUrl,
       media: mediaUrl,
-      description: `user: ${currentUsername}`
+      description: `user: ${currentUsername}`,
     });
     window.open(
       `https://www.pinterest.com/pin/create/button/?${params.toString()}`,
       'pinterest',
       'width=760,height=640,scrollbars=yes,resizable=yes'
     );
-
-    pinBtn.disabled = false;
-    pinBtn.innerHTML = original;
-    if (uploadFailed) {
-      showError('Upload failed — pinned without overlay. Try again in a moment.');
-    }
   });
 
   // Outfits cache: userId → array of { id, name, thumbUrl }
