@@ -978,7 +978,7 @@
       }
     }
 
-    const profileUrl = `https://www.roblox.com/users/profile?username=${encodeURIComponent(currentUsername)}`;
+    const profileUrl = `https://www.roblox.com/users/${currentUserId}/profile`;
     const params = new URLSearchParams({
       url: profileUrl,
       media: mediaUrl,
@@ -1018,6 +1018,13 @@
   let currentOutfitId = 'default';
   // Holds the default avatar URL so clicking "Default" tile can restore it
   let defaultImageUrl = '';
+  // Module-level cache of the current user's outfits for size re-rewriting
+  let allOutfits = [];
+
+  // Rewrites a rbxcdn URL like '.../420/420/...' to '.../<size>/<size>/...'
+  function rewriteCdnSize(url, size) {
+    return url.replace(/\/\d+\/\d+\//, `/${size}/${size}/`);
+  }
 
   enableBg.addEventListener('change', () => {
     bgColorRow.style.display = enableBg.checked ? 'flex' : 'none';
@@ -1038,10 +1045,12 @@
     });
   });
 
-  // These change the source image — re-fetch
+  // These change the source image — re-fetch with the CURRENT outfit selection,
+  // not the default. Critical: changing quality/view should NOT reset the
+  // currently-picked outfit back to the user's default avatar.
   ['quality','viewType'].forEach(id => {
     document.getElementById(id).addEventListener('change', () => {
-      if (currentUserId) generate();
+      if (currentUserId) applyCurrentSelection();
     });
   });
 
@@ -1157,15 +1166,14 @@
     return loadOne(url);
   }
 
-  function rewritePinUrl(username) {
-    // Best-effort URL rewrite for extensions that DO respect overrides
-    // (the Pinterest button below is the guaranteed path; this is a bonus).
+  function rewritePinUrl(userId) {
+    // Best-effort URL rewrite so the URL bar mirrors the Roblox profile URL.
     // Preserves project-page subpath like /FitTok/ so 404.html catches the redirect.
     try {
       if (!window.location.protocol.startsWith('http')) return;
       const path = window.location.pathname;
       const basePath = path.replace(/\/[^\/]*$/, ''); // '/FitTok' on project pages, '' on root
-      const target = `${basePath}/users/profile?username=${encodeURIComponent(username)}`;
+      const target = `${basePath}/users/${userId}/profile`;
       const current = window.location.pathname + window.location.search;
       if (current !== target) {
         history.replaceState({}, '', target);
@@ -1187,13 +1195,10 @@
       currentDisplayName = user.displayName || user.name;
       // Rewrite the URL bar IMMEDIATELY — before fetching the image — so
       // the Pinterest extension has the right URL by the time anything renders.
-      rewritePinUrl(user.name);
-      const size = parseInt(document.getElementById('quality').value, 10) || 720;
-      const view = document.getElementById('viewType').value;
-      currentImageUrl    = await getAvatarUrl(user.id, size, view);
-      defaultImageUrl    = currentImageUrl;
-      currentOutfitId    = 'default';
-      await redraw();
+      rewritePinUrl(user.id);
+      // New search → reset to default avatar; applyCurrentSelection() does the rest
+      currentOutfitId = 'default';
+      await applyCurrentSelection();
       // Fire-and-forget outfits — failure (private inventory) is silent
       loadOutfitsFor(user.id).catch(() => {});
     } catch (e) {
@@ -1208,6 +1213,7 @@
     outfitsDetails.open = false;
     outfitsGrid.innerHTML = '';
     outfitsToggleCount.textContent = '';
+    allOutfits = [];
 
     const cacheKey = String(userId);
     let outfits = outfitsCache.get(cacheKey);
@@ -1240,9 +1246,8 @@
         .map(o => {
           const t = thumbById.get(o.id);
           if (!t || t.state !== 'Completed') return null;
-          // Upgrade the CDN URL to higher resolution (same trick as avatars)
-          const hi = t.imageUrl.replace(/\/\d+\/\d+\//, '/720/720/');
-          return { id: o.id, name: o.name, thumbUrl: hi };
+          // Store the ORIGINAL API URL — we rewrite size on demand in applyCurrentSelection()
+          return { id: o.id, name: o.name, thumbUrl: t.imageUrl };
         })
         .filter(Boolean);
 
@@ -1251,6 +1256,7 @@
       saveOutfitsCache();
     }
 
+    allOutfits = outfits;
     renderOutfits(outfits);
     outfitsToggleCount.textContent = outfits.length;
     outfitsDetails.hidden = false;
@@ -1296,20 +1302,43 @@
     });
   }
 
-  async function pickOutfit(outfitId, thumbUrl, isDefault) {
-    if (!thumbUrl) return;
-    if (currentOutfitId === outfitId) return;
-    currentOutfitId = outfitId;
-    syncActiveTile();
+  // Single source of truth: builds the right image URL based on:
+  //   - which outfit is selected (currentOutfitId)
+  //   - current quality (Image > Quality)
+  //   - current view (Image > View)  ← only applies to default avatar, not outfits
+  // Then redraws. Called by generate(), pickOutfit(), and quality/view changes.
+  async function applyCurrentSelection() {
+    if (!currentUserId) return;
+    const size = parseInt(document.getElementById('quality').value, 10) || 720;
+    const view = document.getElementById('viewType').value;
     setLoading(true);
     try {
-      currentImageUrl = isDefault ? defaultImageUrl : thumbUrl;
+      if (currentOutfitId === 'default') {
+        // Fetch the user's default avatar at the current size + view
+        currentImageUrl = await getAvatarUrl(currentUserId, size, view);
+        defaultImageUrl = currentImageUrl;
+      } else {
+        // Outfit selected — rewrite its CDN URL to the current quality.
+        // (Outfit thumbnails are always full-body; view setting doesn't apply.)
+        const outfit = allOutfits.find(o => String(o.id) === String(currentOutfitId));
+        if (outfit) {
+          currentImageUrl = rewriteCdnSize(outfit.thumbUrl, size);
+        }
+      }
       await redraw();
     } catch (e) {
       showError(e.message);
     } finally {
       setLoading(false);
     }
+  }
+
+  async function pickOutfit(outfitId, thumbUrl, isDefault) {
+    const newId = isDefault ? 'default' : outfitId;
+    if (currentOutfitId === newId) return;
+    currentOutfitId = newId;
+    syncActiveTile();
+    await applyCurrentSelection();
   }
 
   async function redraw() {
