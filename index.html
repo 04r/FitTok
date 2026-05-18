@@ -210,6 +210,10 @@
       display: block;
       animation: slideDown 0.3s var(--ease) both;
     }
+    .error-msg.is-tip {
+      color: var(--text-2);
+      font-weight: 600;
+    }
 
     /* Preview area */
     .preview-section {
@@ -901,66 +905,30 @@
   const pinBtn             = document.getElementById('pinBtn');
   const baseHrefEl         = document.getElementById('baseHref');
 
-  // Pinterest button — uses Cloudinary's URL-based image transform to overlay
-  // the username text on top of the raw Roblox CDN image, server-side.
-  //
-  // WHY this approach (after many failed attempts):
-  //   • No upload needed → no CORS issues, no region blocks, no waiting
-  //   • res.cloudinary.com is a major commercial CDN that's never blocked by
-  //     adblockers / regional filters (unlike catbox / 0x0 / telegra.ph etc.)
-  //   • The transform happens server-side at Cloudinary, Pinterest fetches
-  //     the final composed image just like any normal URL
-  //   • Limitation: overlay font is Arial (not the user's exact font choice),
-  //     and custom background color from canvas isn't reflected. But the
-  //     username TEXT — the thing the user cares about — IS in the pin image.
-
-  function cloudinaryEscape(text) {
-    // Cloudinary text escapes: commas, slashes, percent need special handling
-    return encodeURIComponent(text)
-      .replace(/%2F/g, '%252F')  // slash → double-encoded slash
-      .replace(/,/g, '%2C')      // comma must be percent-encoded (Cloudinary param separator)
-      .replace(/'/g, '%27');     // apostrophe
+  // Copy the customized canvas (overlay + bg baked in) to the system clipboard
+  // so the user can paste it into Pinterest's pin creator after clicking the
+  // Pinterest button. This is the most reliable way to include the overlay in
+  // a pin without any upload service.
+  async function copyCanvasToClipboard() {
+    try {
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+      if (!blob) return false;
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
-  function buildPinMediaUrl() {
-    if (!currentImageUrl) return '';
-    // No overlay → just use the raw avatar URL (also a clean simple pin)
-    if (!enableOverlay.checked || !currentUsername) return currentImageUrl;
-
-    // Read the user's overlay customizations
-    const position    = document.getElementById('position').value;
-    const fontSizePct = parseFloat(document.getElementById('fontSize').value) || 4.5;
-    const colorHex    = document.getElementById('textColor').value.replace('#', '');
-    const isBold      = document.getElementById('bold').checked;
-    const imageSize   = parseInt(document.getElementById('quality').value, 10) || 720;
-
-    // Build the text overlay transformation
-    const fontPx = Math.max(24, Math.floor(imageSize * fontSizePct / 100));
-    const gravityMap = {
-      'bottom-left':   'south_west',
-      'bottom-right':  'south_east',
-      'bottom-center': 'south',
-      'top-left':      'north_west',
-      'top-right':     'north_east',
-      'top-center':    'north',
-    };
-    const gravity   = gravityMap[position] || 'south_west';
-    const offset    = Math.floor(imageSize * 0.03);
-    const safeText  = cloudinaryEscape(currentUsername);
-    const weight    = isBold ? '_bold' : '';
-    const transform = `l_text:Arial_${fontPx}${weight}:${safeText},co_rgb:${colorHex},g_${gravity},x_${offset},y_${offset}`;
-
-    // Cloudinary "demo" cloud — public, supports remote URL fetch + transforms
-    return `https://res.cloudinary.com/demo/image/fetch/${transform}/${currentImageUrl}`;
-  }
-
-  pinBtn.addEventListener('click', () => {
+  pinBtn.addEventListener('click', async () => {
     if (!currentUsername) return;
-    const mediaUrl = buildPinMediaUrl();
+    // Copy the customized canvas to clipboard FIRST so user can paste in Pinterest
+    const copied = await copyCanvasToClipboard();
+
     const profileUrl = `https://www.roblox.com/users/profile?username=${encodeURIComponent(currentUsername)}`;
     const params = new URLSearchParams({
       url: profileUrl,
-      media: mediaUrl,
+      media: currentImageUrl, // raw avatar — overlay version is in clipboard
       description: `user: ${currentUsername}`,
     });
     window.open(
@@ -968,7 +936,22 @@
       'pinterest',
       'width=760,height=640,scrollbars=yes,resizable=yes'
     );
+
+    // Tell the user how to use the clipboard image if they want the overlay version
+    if (copied && enableOverlay.checked) {
+      showPinTip('Image with overlay copied — paste (Ctrl+V) in Pinterest to use it instead');
+    }
   });
+
+  // Show a non-error informational tip below the input. Uses the existing
+  // errorMsg slot but with a "tip" style so it's not alarming.
+  function showPinTip(msg) {
+    errorMsg.textContent = msg;
+    errorMsg.classList.add('show', 'is-tip');
+    setTimeout(() => {
+      errorMsg.classList.remove('show', 'is-tip');
+    }, 6500);
+  }
 
   // Outfits cache: userId → array of { id, name, thumbUrl }
   const outfitsCache = new Map();
