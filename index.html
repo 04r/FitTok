@@ -361,6 +361,26 @@
       animation: spin 0.8s linear infinite;
     }
 
+    /* Roblox / Add to Game button — branded blue */
+    .action-row button.btn-roblox {
+      background: #00A2FF;
+      color: #FFFFFF;
+      border-color: #00A2FF;
+    }
+    .action-row button.btn-roblox:hover {
+      background: #0089D6;
+      color: #FFFFFF;
+      border-color: #0089D6;
+    }
+    .action-row button.btn-roblox:focus-visible {
+      outline: 2px solid #00A2FF;
+      outline-offset: 2px;
+    }
+    .action-row button.btn-roblox:disabled {
+      opacity: 0.85;
+      cursor: progress;
+    }
+
     .outfits-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -576,6 +596,49 @@
     }
     .settings-group.hidden { opacity: 0.35; pointer-events: none; }
 
+    /* Roblox Sync section */
+    .full-width-input {
+      width: 100%;
+      margin: 4px 0 8px;
+      font-size: 11.5px;
+      font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+    }
+    .sync-actions {
+      gap: 10px;
+      align-items: center;
+      margin-top: 6px;
+    }
+    .btn-secondary {
+      height: 30px;
+      padding: 0 12px;
+      background: var(--accent);
+      color: var(--accent-text);
+      border: 1px solid var(--accent);
+      border-radius: 7px;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s var(--ease), transform 0.15s var(--ease);
+    }
+    .btn-secondary:hover { background: var(--accent-hover); }
+    .btn-secondary:active { transform: scale(0.97); }
+    .btn-secondary:disabled { opacity: 0.5; cursor: progress; }
+    .sync-status {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-3);
+    }
+    .sync-status.ok { color: #00B050; }
+    .sync-status.err { color: #E60023; }
+    .sync-help {
+      font-size: 10.5px;
+      color: var(--text-3);
+      margin-top: 8px;
+      line-height: 1.5;
+    }
+    .sync-help a { color: var(--text-2); }
+
     .row {
       transition: opacity 0.25s var(--ease);
     }
@@ -648,6 +711,12 @@
           <path d="M12 0C5.4 0 0 5.4 0 12c0 5.1 3.1 9.4 7.6 11.2-.1-1-.2-2.4 0-3.5.2-1 1.5-6.3 1.5-6.3s-.4-.8-.4-1.9c0-1.8 1-3.1 2.3-3.1 1.1 0 1.6.8 1.6 1.8 0 1.1-.7 2.7-1 4.2-.3 1.3.6 2.3 1.9 2.3 2.3 0 4-2.4 4-5.9 0-3.1-2.2-5.3-5.4-5.3-3.7 0-5.8 2.7-5.8 5.5 0 1.1.4 2.3.9 2.9.1.1.1.2.1.4-.1.4-.3 1.3-.4 1.5-.1.2-.2.3-.5.2-1.6-.7-2.6-3.1-2.6-4.9 0-4 2.9-7.6 8.3-7.6 4.3 0 7.7 3.1 7.7 7.2 0 4.3-2.7 7.8-6.5 7.8-1.3 0-2.5-.7-2.9-1.5l-.8 3c-.3 1.1-1 2.4-1.5 3.3 1.1.4 2.3.5 3.5.5 6.6 0 12-5.4 12-12S18.6 0 12 0z"/>
         </svg>
         Pinterest
+      </button>
+      <button id="addToGameBtn" class="btn-roblox" title="Spawn this avatar as a mannequin in your Roblox Studio game">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M3 3l3.5 18H21L17.5 3H3zm9.3 12.8L8.5 14l1-4 3.8 1.8-1 4z"/>
+        </svg>
+        Add to Game
       </button>
     </div>
   </div>
@@ -781,6 +850,25 @@
       <summary>Outfits <span class="outfits-count-badge" id="outfitsToggleCount">0</span></summary>
       <div class="details-body">
         <div class="outfits-grid" id="outfitsGrid"></div>
+      </div>
+    </details>
+
+    <details>
+      <summary>Roblox Sync</summary>
+      <div class="details-body">
+        <div class="row">
+          <div class="row-label">Bin ID<small>jsonbin.io bin identifier</small></div>
+        </div>
+        <input type="text" id="jsonbinId" class="field full-width-input" placeholder="e.g. 6543abc1ae6e8b6c4f...">
+        <div class="row">
+          <div class="row-label">Master Key<small>jsonbin.io X-Master-Key</small></div>
+        </div>
+        <input type="password" id="jsonbinKey" class="field full-width-input" placeholder="$2a$10$...">
+        <div class="row sync-actions">
+          <button id="syncTestBtn" class="btn-secondary">Test connection</button>
+          <span id="syncStatus" class="sync-status"></span>
+        </div>
+        <p class="sync-help">Set up the bin once, paste the same credentials in the Studio plugin. <a href="roblox-plugin-setup.md" target="_blank">Setup guide →</a></p>
       </div>
     </details>
 
@@ -1006,6 +1094,118 @@
       errorMsg.classList.remove('show', 'is-tip');
     }, 8000);
   }
+
+  // ─── Roblox Sync (Add to Game) ───────────────────────────────────────
+  // The website POSTs outfit/user info to a jsonbin.io bin. A separate
+  // Roblox Studio plugin polls the same bin and spawns mannequins.
+  const addToGameBtn = document.getElementById('addToGameBtn');
+  const jsonbinIdInput = document.getElementById('jsonbinId');
+  const jsonbinKeyInput = document.getElementById('jsonbinKey');
+  const syncTestBtn = document.getElementById('syncTestBtn');
+  const syncStatus = document.getElementById('syncStatus');
+
+  // Restore saved credentials from localStorage
+  jsonbinIdInput.value = localStorage.getItem('jsonbinId') || '';
+  jsonbinKeyInput.value = localStorage.getItem('jsonbinKey') || '';
+
+  jsonbinIdInput.addEventListener('change', () => {
+    localStorage.setItem('jsonbinId', jsonbinIdInput.value.trim());
+  });
+  jsonbinKeyInput.addEventListener('change', () => {
+    localStorage.setItem('jsonbinKey', jsonbinKeyInput.value.trim());
+  });
+
+  function getJsonbinCreds() {
+    const binId = jsonbinIdInput.value.trim();
+    const key   = jsonbinKeyInput.value.trim();
+    if (!binId || !key) return null;
+    return { binId, key };
+  }
+
+  async function jsonbinGet(creds) {
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${creds.binId}/latest`, {
+      headers: { 'X-Master-Key': creds.key, 'X-Bin-Meta': 'false' }
+    });
+    if (!res.ok) throw new Error('GET HTTP ' + res.status);
+    return res.json();
+  }
+
+  async function jsonbinPut(creds, body) {
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${creds.binId}`, {
+      method: 'PUT',
+      headers: {
+        'X-Master-Key': creds.key,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error('PUT HTTP ' + res.status);
+    return res.json();
+  }
+
+  syncTestBtn.addEventListener('click', async () => {
+    const creds = getJsonbinCreds();
+    if (!creds) {
+      syncStatus.textContent = 'Paste Bin ID + Master Key first';
+      syncStatus.className = 'sync-status err';
+      return;
+    }
+    syncTestBtn.disabled = true;
+    syncStatus.textContent = 'Testing…';
+    syncStatus.className = 'sync-status';
+    try {
+      const data = await jsonbinGet(creds);
+      // Initialize queue if missing
+      if (!data || typeof data !== 'object' || !Array.isArray(data.queue)) {
+        await jsonbinPut(creds, { queue: [] });
+      }
+      syncStatus.textContent = '✓ Connected';
+      syncStatus.className = 'sync-status ok';
+    } catch (e) {
+      syncStatus.textContent = '✗ ' + e.message;
+      syncStatus.className = 'sync-status err';
+    } finally {
+      syncTestBtn.disabled = false;
+    }
+  });
+
+  addToGameBtn.addEventListener('click', async () => {
+    if (!currentUserId) return;
+    const creds = getJsonbinCreds();
+    if (!creds) {
+      showPinTip('Set up jsonbin credentials in Roblox Sync settings first.');
+      return;
+    }
+    const original = addToGameBtn.innerHTML;
+    addToGameBtn.disabled = true;
+    addToGameBtn.innerHTML = '<svg class="spinner" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><circle cx="12" cy="12" r="9" opacity=".25"/><path d="M12 3a9 9 0 019 9"/></svg> Sending…';
+
+    try {
+      const isOutfit = currentOutfitId !== 'default';
+      const entry = {
+        kind: isOutfit ? 'outfit' : 'user',
+        id: isOutfit ? Number(currentOutfitId) : Number(currentUserId),
+        name: currentUsername,
+        ts: Date.now(),
+      };
+
+      // GET current bin → push entry → PUT
+      const current = await jsonbinGet(creds);
+      const body = (current && Array.isArray(current.queue))
+        ? { ...current, queue: [...current.queue, entry] }
+        : { queue: [entry] };
+      // Keep the queue trimmed to avoid unbounded growth (last 50)
+      if (body.queue.length > 50) body.queue = body.queue.slice(-50);
+      await jsonbinPut(creds, body);
+
+      showPinTip('✓ Sent to Studio — mannequin will spawn in ~3 seconds');
+    } catch (e) {
+      showPinTip('Sync failed: ' + e.message);
+    } finally {
+      addToGameBtn.disabled = false;
+      addToGameBtn.innerHTML = original;
+    }
+  });
 
   // Outfits cache: userId → array of { id, name, thumbUrl }
   const outfitsCache = new Map();
@@ -1477,6 +1677,7 @@
       downloadBtn.classList.add('visible');
       copyBtn.classList.add('visible');
       pinBtn.classList.add('visible');
+      addToGameBtn.classList.add('visible');
     } catch(e) {
       showError(e.message);
     } finally {
