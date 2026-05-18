@@ -661,9 +661,12 @@
         <div class="row">
           <div class="row-label">Quality</div>
           <select class="select-field" id="quality">
+            <option value="180">180 px</option>
             <option value="420">420 px</option>
             <option value="720">720 px</option>
             <option value="1024" selected>1024 px</option>
+            <option value="1280">1280 px</option>
+            <option value="2048">2048 px</option>
           </select>
         </div>
         <div class="row">
@@ -1133,8 +1136,12 @@
     const endpoint = view === 'full' ? 'avatar'
                    : view === 'bust' ? 'avatar-bust'
                    : 'avatar-headshot';
-    // Request the max size the API supports; upgrade the CDN URL afterwards
-    const apiSize = Math.min(size, API_MAX_SIZE[view] || 720);
+    const apiMax = API_MAX_SIZE[view] || 720;
+    // Bust thumbnails: Roblox's CDN only serves up to 420 — the /720/ or
+    // /1024/ URL rewrite trick doesn't work for bust and would 404. So cap
+    // the effective size at API max for bust.
+    const effectiveSize = (view === 'bust') ? Math.min(size, apiMax) : size;
+    const apiSize = Math.min(effectiveSize, apiMax);
     const url = `${THUMB_BASE}/${endpoint}?userIds=${userId}&size=${apiSize}x${apiSize}&format=Png&isCircular=false`;
     const res = await fetch(url);
     if (!res.ok) throw new Error('Avatar fetch failed');
@@ -1143,9 +1150,9 @@
       throw new Error('Avatar not ready — try again');
     }
     let imageUrl = data.data[0].imageUrl;
-    if (size > apiSize) {
-      // CDN supports higher resolutions by URL rewrite — e.g. /720/720/ → /1024/1024/
-      imageUrl = imageUrl.replace(/\/\d+\/\d+\//, `/${size}/${size}/`);
+    if (effectiveSize > apiSize) {
+      // CDN URL rewrite trick: /720/720/ → /1024/1024/ etc.
+      imageUrl = imageUrl.replace(/\/\d+\/\d+\//, `/${effectiveSize}/${effectiveSize}/`);
     }
     return imageUrl;
   }
