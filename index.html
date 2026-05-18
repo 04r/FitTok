@@ -596,48 +596,25 @@
     }
     .settings-group.hidden { opacity: 0.35; pointer-events: none; }
 
-    /* Roblox Sync section */
-    .full-width-input {
+    /* Studio Sync pair-code input */
+    .sync-code-input {
       width: 100%;
       margin: 4px 0 8px;
-      font-size: 11.5px;
       font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-    }
-    .sync-actions {
-      gap: 10px;
-      align-items: center;
-      margin-top: 6px;
-    }
-    .btn-secondary {
-      height: 30px;
-      padding: 0 12px;
-      background: var(--accent);
-      color: var(--accent-text);
-      border: 1px solid var(--accent);
-      border-radius: 7px;
-      font-family: inherit;
-      font-size: 12px;
+      font-size: 14px;
       font-weight: 700;
-      cursor: pointer;
-      transition: background 0.2s var(--ease), transform 0.15s var(--ease);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
     }
-    .btn-secondary:hover { background: var(--accent-hover); }
-    .btn-secondary:active { transform: scale(0.97); }
-    .btn-secondary:disabled { opacity: 0.5; cursor: progress; }
-    .sync-status {
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--text-3);
-    }
-    .sync-status.ok { color: #00B050; }
-    .sync-status.err { color: #E60023; }
     .sync-help {
       font-size: 10.5px;
       color: var(--text-3);
       margin-top: 8px;
-      line-height: 1.5;
+      line-height: 1.55;
     }
     .sync-help a { color: var(--text-2); }
+    .sync-help b { color: var(--text-2); }
+
 
     .row {
       transition: opacity 0.25s var(--ease);
@@ -744,6 +721,13 @@
             <option value="full">Full body</option>
             <option value="bust">Bust</option>
             <option value="headshot">Headshot</option>
+          </select>
+        </div>
+        <div class="row">
+          <div class="row-label">Rig type<small>For "Add to Game" mannequin</small></div>
+          <select class="select-field" id="rigType">
+            <option value="R15" selected>R15</option>
+            <option value="R6">R6</option>
           </select>
         </div>
       </div>
@@ -854,21 +838,13 @@
     </details>
 
     <details>
-      <summary>Roblox Sync</summary>
+      <summary>Studio Sync</summary>
       <div class="details-body">
         <div class="row">
-          <div class="row-label">Bin ID<small>jsonbin.io bin identifier</small></div>
+          <div class="row-label">Pair code<small>Shown in the FitTok plugin window in Studio</small></div>
         </div>
-        <input type="text" id="jsonbinId" class="field full-width-input" placeholder="e.g. 6543abc1ae6e8b6c4f...">
-        <div class="row">
-          <div class="row-label">Master Key<small>jsonbin.io X-Master-Key</small></div>
-        </div>
-        <input type="password" id="jsonbinKey" class="field full-width-input" placeholder="$2a$10$...">
-        <div class="row sync-actions">
-          <button id="syncTestBtn" class="btn-secondary">Test connection</button>
-          <span id="syncStatus" class="sync-status"></span>
-        </div>
-        <p class="sync-help">Set up the bin once, paste the same credentials in the Studio plugin. <a href="roblox-plugin-setup.md" target="_blank">Setup guide →</a></p>
+        <input type="text" id="syncCode" class="field sync-code-input" placeholder="e.g. AB7K3X" maxlength="8" autocomplete="off" spellcheck="false">
+        <p class="sync-help">Open the FitTok plugin in Roblox Studio → copy its <b>Pair code</b> → paste here. Only Studios with this exact code will receive your "Add to Game" clicks. <a href="roblox-plugin-setup.md" target="_blank">Setup guide →</a></p>
       </div>
     </details>
 
@@ -1096,30 +1072,27 @@
   }
 
   // ─── Roblox Sync (Add to Game) ───────────────────────────────────────
-  // The website POSTs outfit/user info to a jsonbin.io bin. A separate
-  // Roblox Studio plugin polls the same bin and spawns mannequins.
+  // Baked-in jsonbin credentials so the user doesn't need to set anything up.
+  // The Studio plugin is also pre-configured with the same values.
+  const JSONBIN_DEFAULTS = {
+    binId: '6a0b3649ee5a733b12dcc897',
+    masterKey: '$2a$10$x/xYkEtVNPC3wPby8fPuzuljD6MEUPDEw6uSnxtqaPVwI9KJAlQmW',
+  };
+
   const addToGameBtn = document.getElementById('addToGameBtn');
-  const jsonbinIdInput = document.getElementById('jsonbinId');
-  const jsonbinKeyInput = document.getElementById('jsonbinKey');
-  const syncTestBtn = document.getElementById('syncTestBtn');
-  const syncStatus = document.getElementById('syncStatus');
+  const rigTypeSelect = document.getElementById('rigType');
+  const syncCodeInput = document.getElementById('syncCode');
 
-  // Restore saved credentials from localStorage
-  jsonbinIdInput.value = localStorage.getItem('jsonbinId') || '';
-  jsonbinKeyInput.value = localStorage.getItem('jsonbinKey') || '';
-
-  jsonbinIdInput.addEventListener('change', () => {
-    localStorage.setItem('jsonbinId', jsonbinIdInput.value.trim());
-  });
-  jsonbinKeyInput.addEventListener('change', () => {
-    localStorage.setItem('jsonbinKey', jsonbinKeyInput.value.trim());
+  // Restore the user's pair code (linking them to their Studio plugin)
+  syncCodeInput.value = localStorage.getItem('studioSyncCode') || '';
+  syncCodeInput.addEventListener('input', () => {
+    const v = syncCodeInput.value.trim().toUpperCase();
+    syncCodeInput.value = v;
+    localStorage.setItem('studioSyncCode', v);
   });
 
   function getJsonbinCreds() {
-    const binId = jsonbinIdInput.value.trim();
-    const key   = jsonbinKeyInput.value.trim();
-    if (!binId || !key) return null;
-    return { binId, key };
+    return { binId: JSONBIN_DEFAULTS.binId, key: JSONBIN_DEFAULTS.masterKey };
   }
 
   async function jsonbinGet(creds) {
@@ -1143,39 +1116,14 @@
     return res.json();
   }
 
-  syncTestBtn.addEventListener('click', async () => {
-    const creds = getJsonbinCreds();
-    if (!creds) {
-      syncStatus.textContent = 'Paste Bin ID + Master Key first';
-      syncStatus.className = 'sync-status err';
-      return;
-    }
-    syncTestBtn.disabled = true;
-    syncStatus.textContent = 'Testing…';
-    syncStatus.className = 'sync-status';
-    try {
-      const data = await jsonbinGet(creds);
-      // Initialize queue if missing
-      if (!data || typeof data !== 'object' || !Array.isArray(data.queue)) {
-        await jsonbinPut(creds, { queue: [] });
-      }
-      syncStatus.textContent = '✓ Connected';
-      syncStatus.className = 'sync-status ok';
-    } catch (e) {
-      syncStatus.textContent = '✗ ' + e.message;
-      syncStatus.className = 'sync-status err';
-    } finally {
-      syncTestBtn.disabled = false;
-    }
-  });
-
   addToGameBtn.addEventListener('click', async () => {
     if (!currentUserId) return;
-    const creds = getJsonbinCreds();
-    if (!creds) {
-      showPinTip('Set up jsonbin credentials in Roblox Sync settings first.');
+    const code = (localStorage.getItem('studioSyncCode') || '').trim().toUpperCase();
+    if (!code) {
+      showPinTip('Set your Pair code in Studio Sync settings first (copy it from the Roblox plugin).');
       return;
     }
+    const creds = getJsonbinCreds();
     const original = addToGameBtn.innerHTML;
     addToGameBtn.disabled = true;
     addToGameBtn.innerHTML = '<svg class="spinner" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><circle cx="12" cy="12" r="9" opacity=".25"/><path d="M12 3a9 9 0 019 9"/></svg> Sending…';
@@ -1183,9 +1131,11 @@
     try {
       const isOutfit = currentOutfitId !== 'default';
       const entry = {
+        code,                                          // ← routes entry to the right Studio plugin
         kind: isOutfit ? 'outfit' : 'user',
         id: isOutfit ? Number(currentOutfitId) : Number(currentUserId),
         name: currentUsername,
+        rigType: rigTypeSelect.value,                  // 'R15' or 'R6'
         ts: Date.now(),
       };
 
@@ -1194,11 +1144,11 @@
       const body = (current && Array.isArray(current.queue))
         ? { ...current, queue: [...current.queue, entry] }
         : { queue: [entry] };
-      // Keep the queue trimmed to avoid unbounded growth (last 50)
-      if (body.queue.length > 50) body.queue = body.queue.slice(-50);
+      // Keep the queue trimmed to avoid unbounded growth (last 100)
+      if (body.queue.length > 100) body.queue = body.queue.slice(-100);
       await jsonbinPut(creds, body);
 
-      showPinTip('✓ Sent to Studio — mannequin will spawn in ~3 seconds');
+      showPinTip(`✓ Sent to Studio — ${entry.rigType} mannequin will spawn in ~3 seconds`);
     } catch (e) {
       showPinTip('Sync failed: ' + e.message);
     } finally {
