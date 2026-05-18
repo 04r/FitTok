@@ -615,6 +615,40 @@
     .sync-help a { color: var(--text-2); }
     .sync-help b { color: var(--text-2); }
 
+    /* Full-width Add to Game button — lives inside the Studio Sync accordion */
+    .btn-roblox-full {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      height: 38px;
+      margin-top: 10px;
+      background: #00A2FF;
+      color: #FFFFFF;
+      border: 1px solid #00A2FF;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      cursor: pointer;
+      transition: background 0.2s var(--ease), border-color 0.2s var(--ease), transform 0.15s var(--ease), box-shadow 0.2s var(--ease);
+    }
+    .btn-roblox-full:hover {
+      background: #0089D6;
+      border-color: #0089D6;
+    }
+    .btn-roblox-full:active { transform: scale(0.985); }
+    .btn-roblox-full:focus-visible {
+      outline: 2px solid #00A2FF;
+      outline-offset: 2px;
+    }
+    .btn-roblox-full:disabled {
+      opacity: 0.7;
+      cursor: progress;
+    }
+    .btn-roblox-full svg { flex-shrink: 0; }
 
     .row {
       transition: opacity 0.25s var(--ease);
@@ -689,12 +723,6 @@
         </svg>
         Pinterest
       </button>
-      <button id="addToGameBtn" class="btn-roblox" title="Spawn this avatar as a mannequin in your Roblox Studio game">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-          <path d="M3 3l3.5 18H21L17.5 3H3zm9.3 12.8L8.5 14l1-4 3.8 1.8-1 4z"/>
-        </svg>
-        Add to Game
-      </button>
     </div>
   </div>
 
@@ -721,13 +749,6 @@
             <option value="full">Full body</option>
             <option value="bust">Bust</option>
             <option value="headshot">Headshot</option>
-          </select>
-        </div>
-        <div class="row">
-          <div class="row-label">Rig type<small>For "Add to Game" mannequin</small></div>
-          <select class="select-field" id="rigType">
-            <option value="R15" selected>R15</option>
-            <option value="R6">R6</option>
           </select>
         </div>
       </div>
@@ -844,7 +865,20 @@
           <div class="row-label">Pair code<small>Shown in the FitTok plugin window in Studio</small></div>
         </div>
         <input type="text" id="syncCode" class="field sync-code-input" placeholder="e.g. AB7K3X" maxlength="8" autocomplete="off" spellcheck="false">
-        <p class="sync-help">Open the FitTok plugin in Roblox Studio → copy its <b>Pair code</b> → paste here. Only Studios with this exact code will receive your "Add to Game" clicks. <a href="roblox-plugin-setup.md" target="_blank">Setup guide →</a></p>
+        <div class="row">
+          <div class="row-label">Rig type<small>R6 or R15 mannequin</small></div>
+          <select class="select-field" id="rigType">
+            <option value="R15" selected>R15</option>
+            <option value="R6">R6</option>
+          </select>
+        </div>
+        <button id="addToGameBtn" class="btn-roblox-full" title="Spawn this avatar as a mannequin in your Roblox Studio game">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M3 3l3.5 18H21L17.5 3H3zm9.3 12.8L8.5 14l1-4 3.8 1.8-1 4z"/>
+          </svg>
+          Add to Game
+        </button>
+        <p class="sync-help">Open the FitTok plugin in Roblox Studio → copy its <b>Pair code</b> → paste here. Only your Studio receives your "Add to Game" clicks. <a href="roblox-plugin-setup.md" target="_blank">Setup guide →</a></p>
       </div>
     </details>
 
@@ -1117,10 +1151,13 @@
   }
 
   addToGameBtn.addEventListener('click', async () => {
-    if (!currentUserId) return;
+    if (!currentUserId) {
+      showPinTip('Search a Roblox user first, then click Add to Game.');
+      return;
+    }
     const code = (localStorage.getItem('studioSyncCode') || '').trim().toUpperCase();
     if (!code) {
-      showPinTip('Set your Pair code in Studio Sync settings first (copy it from the Roblox plugin).');
+      showPinTip('Paste your Pair code (from the Roblox plugin window) into Studio Sync first.');
       return;
     }
     const creds = getJsonbinCreds();
