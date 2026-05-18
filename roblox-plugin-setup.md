@@ -22,8 +22,9 @@ The website (`04r.github.io/FitTok`) and the FitTok Studio plugin share a hosted
 2. Open the FitTok website, scroll to **Studio Sync** in settings, and paste the code into the **Pair code** field.
 3. Back in Studio, make sure **HTTP requests** are enabled: **Game Settings → Security → Allow HTTP Requests** (toggle on).
 4. In the plugin window, click **Connect**. Status should turn green: `Connected — listening`.
+5. On the website, the green dot next to "Studio Sync" lights up within a few seconds, and the **Add to Game** button becomes clickable.
 
-That's it. The pair code is saved in your browser's localStorage and inside the plugin, so you only do this once per machine.
+The pair code is saved on both ends, so this is one-time per machine.
 
 > The pair code is what keeps things separate when multiple people use the website at the same time. Only **your** plugin (the one showing this code) reacts to **your** "Add to Game" clicks.
 
@@ -32,15 +33,18 @@ That's it. The pair code is saved in your browser's localStorage and inside the 
 ## 3 · Use it
 
 On the website:
-- Search a user, optionally pick a saved outfit and the rig type (R6 / R15) in **Studio Sync**.
-- Click **Add to Game** → see the green tip `✓ Sent to Studio`.
+- Search a user, optionally pick a saved outfit and choose **R6** or **R15** in **Studio Sync**.
+- Click **Add to Game** → green tip `✓ Sent to Studio`.
 
-In Studio (within ~3 seconds):
-- A new mannequin appears near your camera focus, wearing the avatar/outfit.
-- It's tagged `FitTokMannequin` (find all of them via CollectionService).
+In Studio (within ~1 second):
+- A new mannequin appears at your camera focus, wearing the avatar/outfit, **fully anchored** so you can drag it freely with the Move tool.
+- It lands inside a `workspace.Outfits` folder (auto-created on first spawn).
+- It's tagged `FitTokMannequin` (you can find them all via CollectionService) and carries attributes (`FitTokKind`, `FitTokId`, `FitTokRig`, `FitTokInstanceId`) so the website can mirror them back.
 - It's auto-selected, and **Ctrl+Z** undoes the spawn cleanly.
 
-You can leave the plugin running with **Connect** on while you browse — every "Add to Game" click spawns a new mannequin in your active Studio session.
+Back on the website, the **In game** panel under Studio Sync mirrors every mannequin currently in `workspace.Outfits` — hover any tile and click the **×** to delete it from the game.
+
+> Drag tip: in the viewport, click on the mannequin in the **Explorer** (or use **Model select** mode on the Model tab) to grab the whole model. Clicking a single body part in the viewport with default selection still grabs just that part — that's normal Studio behavior.
 
 ---
 
@@ -49,10 +53,9 @@ You can leave the plugin running with **Connect** on while you browse — every 
 | Symptom | Fix |
 |---|---|
 | Plugin status: `HTTP requests are disabled` | Enable in Game Settings → Security → Allow HTTP Requests |
-| Plugin status: `Connection error` | Check your internet connection, then click Disconnect → Connect |
-| Website tip: `Search a Roblox user first` | Run a search on the website before clicking Add to Game |
-| Website tip: `Paste your Pair code…` | Copy the code from the plugin window into the Studio Sync field |
-| Mannequin spawns without clothing | Outfit has been deleted / set private on Roblox |
-| Want to "reset" your queue | Stop both ends (Disconnect plugin, close website), wait 10 seconds, reconnect |
+| Plugin status: `Connection error` | Check your internet, then click Disconnect → Connect |
+| Add to Game button stays disabled | Make sure the green dot next to "Studio Sync" is lit. If not, click Connect in the plugin window and wait a few seconds. |
+| In-game panel empty even though mannequins are in workspace | Mannequins must live inside `workspace.Outfits` and carry the `FitTokMannequin` tag — only ones spawned by this plugin qualify |
+| Mannequin spawns without clothing | Outfit has been deleted or set private on Roblox |
 
-Polling is light (one HTTP request every 3 seconds while connected), so just disconnect the plugin when you're not actively using it to save bandwidth.
+Polling is light (one HTTP request every ~1s while connected). Disconnect the plugin when you're not actively using it to save on the free-tier jsonbin quota.
