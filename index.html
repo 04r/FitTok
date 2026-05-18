@@ -80,138 +80,26 @@
        centering — the main card stays dead-center in the viewport no matter
        what's in the strip. Positioned vertically so the toggle lines up with
        the avatar preview area. */
-    .outfits-strip {
-      position: absolute;
-      top: 140px; /* lower so toggle aligns with avatar mid-area */
-      left: 50%;
-      margin-left: 224px; /* half main width (210) + gap (14) */
-      display: flex;
-      gap: 14px;
-      align-items: flex-start;
-    }
-    .outfits-strip[hidden] { display: none; }
-
-    /* Minimal floating circle toggle — count + small chevron, nothing else */
-    .outfits-toggle {
-      width: 56px;
-      height: 56px;
-      border-radius: 50%;
-      padding: 0;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      cursor: pointer;
-      color: var(--text);
-      font-family: inherit;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 2px;
-      transition: background 0.25s var(--ease), border-color 0.25s var(--ease), transform 0.2s var(--ease), box-shadow 0.25s var(--ease);
-      animation: scaleIn 0.4s var(--ease) both;
-    }
-    .outfits-toggle:hover {
-      background: var(--bg-sub);
-      border-color: var(--text-2);
-      box-shadow: 0 4px 14px rgba(0,0,0,0.08);
-      transform: translateY(-1px);
-    }
-    [data-theme="dark"] .outfits-toggle:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.5); }
-    .outfits-toggle:active { transform: scale(0.94); }
-    .outfits-toggle.is-open { background: var(--bg-sub); border-color: var(--text-2); }
-    .outfits-toggle .count {
-      font-size: 14px;
-      font-weight: 700;
-      line-height: 1;
-      letter-spacing: -0.2px;
-      color: var(--text);
-    }
-    .outfits-toggle .chevron {
-      width: 11px;
-      height: 11px;
-      color: var(--text-3);
-      transition: transform 0.3s var(--ease), color 0.2s var(--ease);
-    }
-    .outfits-toggle:hover .chevron { color: var(--text); }
-    .outfits-toggle.is-open .chevron { transform: rotate(180deg); color: var(--text); }
-
-    /* Outfits side panel — slides out to the right of the toggle when opened.
-       Constrained height so the grid inside scrolls when there are many outfits. */
-    .side-panel {
-      width: 380px;
-      max-width: 380px;
-      height: 500px;
-      max-height: calc(100vh - 48px);
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 18px 20px 20px;
-      flex-shrink: 0;
-      display: flex;
-      flex-direction: column;
-      min-height: 0;
-      animation: scaleIn 0.4s var(--ease) both;
-      transition: background 0.35s var(--ease), border-color 0.35s var(--ease);
-    }
-    .side-panel[hidden] { display: none; }
-    .side-panel-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      padding-bottom: 12px;
-      margin-bottom: 14px;
-      border-bottom: 1px solid var(--border);
-    }
-    .side-panel-title {
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.6px;
-      text-transform: uppercase;
-      color: var(--text);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .side-panel-count {
+    /* Outfit count badge — sits next to the "Outfits" accordion summary */
+    .outfits-count-badge {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 1px 8px;
       font-size: 10px;
       font-weight: 700;
-      padding: 1px 7px;
+      letter-spacing: 0;
+      color: var(--text);
       background: var(--bg-sub);
       border: 1px solid var(--border);
       border-radius: 10px;
-      color: var(--text);
-      letter-spacing: 0;
     }
+    #outfitsDetails[hidden] { display: none; }
+
 
     /* Mobile: stack vertically, full-width, no absolute positioning */
+    /* mobile breakpoint reserved for future tweaks */
     @media (max-width: 900px) {
-      .outfits-strip {
-        position: static;
-        margin: 14px 0 0 0;
-        flex-direction: column;
-        width: 100%;
-        max-width: 420px;
-        align-items: stretch;
-        gap: 12px;
-      }
-      .outfits-toggle {
-        width: 100%;
-        height: 48px;
-        border-radius: 12px;
-        flex-direction: row;
-        gap: 8px;
-        align-self: stretch;
-      }
-      .outfits-toggle .count { font-size: 13px; }
-      .outfits-toggle .chevron { width: 12px; height: 12px; }
-      .outfits-toggle.is-open .chevron { transform: rotate(90deg); }
-      .side-panel {
-        width: 100%;
-        max-width: 420px;
-        height: auto;
-        max-height: 70vh;
-      }
+      .outfits-grid { grid-template-columns: repeat(3, 1fr); }
     }
 
     .app {
@@ -472,12 +360,12 @@
     .outfits-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 18px;
+      gap: 14px;
+      max-height: 360px;
       overflow-y: auto;
-      flex: 1 1 auto;
-      min-height: 0;
-      padding: 4px 8px 8px 4px;
-      /* subtle custom scrollbar in webkit */
+      padding: 8px 8px 12px 4px;
+      margin-top: 4px;
+      /* subtle custom scrollbar */
       scrollbar-width: thin;
       scrollbar-color: var(--border-mid) transparent;
     }
@@ -882,24 +770,17 @@
       </div>
     </details>
 
+    <details id="outfitsDetails" hidden>
+      <summary>Outfits <span class="outfits-count-badge" id="outfitsToggleCount">0</span></summary>
+      <div class="details-body">
+        <div class="outfits-grid" id="outfitsGrid"></div>
+      </div>
+    </details>
+
   </div>
 
 </div>
 
-<div class="outfits-strip" id="outfitsStrip" hidden>
-  <button class="outfits-toggle" id="outfitsToggle" type="button" aria-label="Toggle outfits panel">
-    <span class="count" id="outfitsToggleCount">0</span>
-    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <polyline points="9 18 15 12 9 6"/>
-    </svg>
-  </button>
-  <aside class="side-panel" id="outfitsPanel" hidden>
-    <div class="side-panel-header">
-      <div class="side-panel-title">Outfits <span class="side-panel-count" id="sidePanelCount"></span></div>
-    </div>
-    <div class="outfits-grid" id="outfitsGrid"></div>
-  </aside>
-</div>
 
 <script>
   // If someone landed here via a Pinterest pin click, redirect to the real
@@ -1014,22 +895,11 @@
   const shadowColorRow  = document.getElementById('shadowColorRow');
   const avatarLink      = document.getElementById('avatarLink');
   const canvasWrap      = document.getElementById('canvasWrap');
-  const outfitsStrip       = document.getElementById('outfitsStrip');
-  const outfitsToggle      = document.getElementById('outfitsToggle');
+  const outfitsDetails     = document.getElementById('outfitsDetails');
   const outfitsToggleCount = document.getElementById('outfitsToggleCount');
   const outfitsGrid        = document.getElementById('outfitsGrid');
-  const outfitsPanel       = document.getElementById('outfitsPanel');
-  const sidePanelCount     = document.getElementById('sidePanelCount');
   const pinBtn             = document.getElementById('pinBtn');
   const baseHrefEl         = document.getElementById('baseHref');
-
-  // Outfits toggle: open / close the side panel; the strip is shown
-  // whenever the user has at least one public outfit.
-  outfitsToggle.addEventListener('click', () => {
-    const willOpen = outfitsPanel.hidden;
-    outfitsPanel.hidden = !willOpen;
-    outfitsToggle.classList.toggle('is-open', willOpen);
-  });
 
   // Pinterest button — uploads the customized canvas (with username overlay
   // + custom background) to a public image host so Pinterest can fetch it,
@@ -1045,26 +915,31 @@
     });
   }
 
-  // telegra.ph — anonymous, has CORS, persistent
-  async function tryTelegraph(blob) {
+  // ── Image upload services, tried in order until one works ──
+
+  // catbox.moe via codetabs.com CORS proxy — codetabs forwards POST + multipart
+  async function tryCatboxCodetabs(blob) {
     const fd = new FormData();
-    fd.append('file', blob, `${currentUsername || 'avatar'}.png`);
-    const res = await fetch('https://telegra.ph/upload', { method: 'POST', body: fd });
-    if (!res.ok) throw new Error('telegraph HTTP ' + res.status);
-    const data = await res.json();
-    if (!Array.isArray(data) || !data[0] || !data[0].src) throw new Error('telegraph bad response');
-    return 'https://telegra.ph' + data[0].src;
+    fd.append('reqtype', 'fileupload');
+    fd.append('fileToUpload', blob, `${currentUsername || 'avatar'}.png`);
+    const proxyUrl = 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent('https://catbox.moe/user/api.php');
+    const res = await fetch(proxyUrl, { method: 'POST', body: fd });
+    if (!res.ok) throw new Error('catbox-codetabs HTTP ' + res.status);
+    const url = (await res.text()).trim();
+    if (!/^https?:\/\/files\.catbox\.moe\//.test(url)) throw new Error('catbox-codetabs bad: ' + url.slice(0, 80));
+    return url;
   }
 
-  // uguu.se — anonymous, has CORS, ephemeral (~3 hours; long enough for Pinterest scrape)
-  async function tryUguu(blob) {
+  // catbox.moe via corsproxy.io — different proxy, different chance of working
+  async function tryCatboxCorsproxy(blob) {
     const fd = new FormData();
-    fd.append('files[]', blob, `${currentUsername || 'avatar'}.png`);
-    const res = await fetch('https://uguu.se/upload', { method: 'POST', body: fd });
-    if (!res.ok) throw new Error('uguu HTTP ' + res.status);
-    const data = await res.json();
-    const url = data && data.files && data.files[0] && data.files[0].url;
-    if (!url || !/^https?:\/\//.test(url)) throw new Error('uguu bad response');
+    fd.append('reqtype', 'fileupload');
+    fd.append('fileToUpload', blob, `${currentUsername || 'avatar'}.png`);
+    const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent('https://catbox.moe/user/api.php');
+    const res = await fetch(proxyUrl, { method: 'POST', body: fd });
+    if (!res.ok) throw new Error('catbox-corsproxy HTTP ' + res.status);
+    const url = (await res.text()).trim();
+    if (!/^https?:\/\/files\.catbox\.moe\//.test(url)) throw new Error('catbox-corsproxy bad: ' + url.slice(0, 80));
     return url;
   }
 
@@ -1079,6 +954,18 @@
     return url;
   }
 
+  // uguu.se — anonymous, has CORS, ephemeral
+  async function tryUguu(blob) {
+    const fd = new FormData();
+    fd.append('files[]', blob, `${currentUsername || 'avatar'}.png`);
+    const res = await fetch('https://uguu.se/upload', { method: 'POST', body: fd });
+    if (!res.ok) throw new Error('uguu HTTP ' + res.status);
+    const data = await res.json();
+    const url = data && data.files && data.files[0] && data.files[0].url;
+    if (!url || !/^https?:\/\//.test(url)) throw new Error('uguu bad response');
+    return url;
+  }
+
   // tmpfiles.org — anonymous, has CORS, 1-hour retention
   async function tryTmpfiles(blob) {
     const fd = new FormData();
@@ -1090,9 +977,30 @@
     return data.data.url.replace('://tmpfiles.org/', '://tmpfiles.org/dl/');
   }
 
+  // telegra.ph — anonymous, has CORS (regionally blocked in TR/etc)
+  async function tryTelegraph(blob) {
+    const fd = new FormData();
+    fd.append('file', blob, `${currentUsername || 'avatar'}.png`);
+    const res = await fetch('https://telegra.ph/upload', { method: 'POST', body: fd });
+    if (!res.ok) throw new Error('telegraph HTTP ' + res.status);
+    const data = await res.json();
+    if (!Array.isArray(data) || !data[0] || !data[0].src) throw new Error('telegraph bad response');
+    return 'https://telegra.ph' + data[0].src;
+  }
+
   async function uploadCanvas() {
     const blob = await canvasToBlob();
-    const services = [tryTelegraph, tryUguu, try0x0st, tryTmpfiles];
+    // Catbox via proxies first (catbox itself is reliable; need a working CORS
+    // proxy to relay POST). Then direct-CORS hosts. Telegraph last because
+    // it's regionally blocked in Turkey (where the user is).
+    const services = [
+      tryCatboxCodetabs,
+      tryCatboxCorsproxy,
+      try0x0st,
+      tryUguu,
+      tryTmpfiles,
+      tryTelegraph,
+    ];
     const errors = [];
     for (const svc of services) {
       try {
@@ -1100,6 +1008,7 @@
         console.info('[pin] upload OK via', svc.name, '→', url);
         return url;
       } catch (e) {
+        console.warn('[pin]', svc.name, 'failed:', e.message);
         errors.push(`${svc.name}: ${e.message}`);
       }
     }
@@ -1342,12 +1251,10 @@
   }
 
   async function loadOutfitsFor(userId) {
-    outfitsStrip.hidden = true;
-    outfitsPanel.hidden = true;
-    outfitsToggle.classList.remove('is-open');
+    outfitsDetails.hidden = true;
+    outfitsDetails.open = false;
     outfitsGrid.innerHTML = '';
     outfitsToggleCount.textContent = '';
-    sidePanelCount.textContent = '';
 
     const cacheKey = String(userId);
     let outfits = outfitsCache.get(cacheKey);
@@ -1393,9 +1300,7 @@
 
     renderOutfits(outfits);
     outfitsToggleCount.textContent = outfits.length;
-    sidePanelCount.textContent = outfits.length;
-    outfitsStrip.hidden = false;
-    // Side panel stays closed initially — user opens via toggle
+    outfitsDetails.hidden = false;
   }
 
   function renderOutfits(outfits) {
