@@ -905,14 +905,46 @@
   const pinBtn             = document.getElementById('pinBtn');
   const baseHrefEl         = document.getElementById('baseHref');
 
-  // Copy the customized canvas (overlay + bg baked in) to the system clipboard
-  // so the user can paste it into Pinterest's pin creator after clicking the
-  // Pinterest button. This is the most reliable way to include the overlay in
-  // a pin without any upload service.
+  // ImgBB API key for uploading the customized canvas to a public URL.
+  // The uploaded URL is then used as the pin's media so the overlay shows up.
+  const IMGBB_API_KEY = '2fcd186800ecd8f31d7952813e8153c2';
+
+  function canvasToBlobPromise() {
+    return new Promise((resolve, reject) => {
+      canvas.toBlob(b => b ? resolve(b) : reject(new Error('canvas blob failed')), 'image/png');
+    });
+  }
+
+  function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(String(r.result).split(',')[1]);
+      r.onerror = reject;
+      r.readAsDataURL(blob);
+    });
+  }
+
+  async function uploadToImgbb(blob) {
+    const base64 = await blobToBase64(blob);
+    const fd = new FormData();
+    fd.append('image', base64);
+    fd.append('name', `${currentUsername || 'avatar'}_${Date.now()}`);
+    const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+      method: 'POST',
+      body: fd,
+    });
+    if (!res.ok) throw new Error('imgbb HTTP ' + res.status);
+    const data = await res.json();
+    if (!data || !data.success || !data.data || !data.data.url) {
+      throw new Error('imgbb bad response: ' + (data && data.error ? data.error.message : 'unknown'));
+    }
+    return data.data.url;
+  }
+
+  // Fallback: copy canvas to clipboard for manual paste if upload fails
   async function copyCanvasToClipboard() {
     try {
-      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
-      if (!blob) return false;
+      const blob = await canvasToBlobPromise();
       await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
       return true;
     } catch (_) {
@@ -922,13 +954,34 @@
 
   pinBtn.addEventListener('click', async () => {
     if (!currentUsername) return;
-    // Copy the customized canvas to clipboard FIRST so user can paste in Pinterest
-    const copied = await copyCanvasToClipboard();
+    const original = pinBtn.innerHTML;
+    pinBtn.disabled = true;
+    pinBtn.innerHTML = '<svg class="spinner" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><circle cx="12" cy="12" r="9" opacity=".25"/><path d="M12 3a9 9 0 019 9"/></svg> Uploading…';
+    hideError();
+
+    // Try ImgBB upload first — gives us a real public URL with the overlay
+    let mediaUrl = currentImageUrl; // raw avatar as last-resort fallback
+    let uploadOK = false;
+    try {
+      const blob = await canvasToBlobPromise();
+      mediaUrl = await uploadToImgbb(blob);
+      uploadOK = true;
+      console.info('[pin] uploaded to imgbb →', mediaUrl);
+    } catch (e) {
+      console.warn('[pin] imgbb upload failed:', e.message);
+      // Fall back to clipboard so user can paste manually
+      const copied = await copyCanvasToClipboard();
+      if (copied) {
+        showPinTip('Upload failed. Image copied to clipboard — paste it in Pinterest.');
+      } else {
+        showPinTip('Upload failed. Pin uses raw avatar without overlay.');
+      }
+    }
 
     const profileUrl = `https://www.roblox.com/users/profile?username=${encodeURIComponent(currentUsername)}`;
     const params = new URLSearchParams({
       url: profileUrl,
-      media: currentImageUrl, // raw avatar — overlay version is in clipboard
+      media: mediaUrl,
       description: `user: ${currentUsername}`,
     });
     window.open(
@@ -937,20 +990,18 @@
       'width=760,height=640,scrollbars=yes,resizable=yes'
     );
 
-    // Tell the user how to use the clipboard image if they want the overlay version
-    if (copied && enableOverlay.checked) {
-      showPinTip('Image with overlay copied — paste (Ctrl+V) in Pinterest to use it instead');
-    }
+    pinBtn.disabled = false;
+    pinBtn.innerHTML = original;
   });
 
-  // Show a non-error informational tip below the input. Uses the existing
-  // errorMsg slot but with a "tip" style so it's not alarming.
+  // Inline tip messaging (reuses error slot styling but soft)
   function showPinTip(msg) {
     errorMsg.textContent = msg;
     errorMsg.classList.add('show', 'is-tip');
-    setTimeout(() => {
+    clearTimeout(showPinTip._t);
+    showPinTip._t = setTimeout(() => {
       errorMsg.classList.remove('show', 'is-tip');
-    }, 6500);
+    }, 8000);
   }
 
   // Outfits cache: userId → array of { id, name, thumbUrl }
