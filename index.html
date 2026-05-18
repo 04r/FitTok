@@ -809,6 +809,24 @@
     .ig-tile:hover .ig-tile-remove { opacity: 1; }
     .ig-tile .ig-tile-remove:hover { background: #DC2626; transform: scale(1.1); }
     .ig-tile.is-removing { opacity: 0.4; pointer-events: none; }
+    .ig-tile.ig-tile-unknown img { opacity: 0.25; }
+    .ig-tile.ig-tile-unknown .ig-tile-meta { display: none; }
+    .ig-tile.ig-tile-unknown .ig-tile-rig { opacity: 0.6; }
+    .ig-tile-name-large {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      text-align: center;
+      word-break: break-word;
+      pointer-events: none;
+      line-height: 1.15;
+    }
 
     .ig-empty {
       font-size: 11px;
@@ -1424,8 +1442,11 @@
   const PLACEHOLDER_IMG = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 fill=%22%23222%22/%3E%3Ccircle cx=%2250%22 cy=%2238%22 r=%2214%22 fill=%22%23555%22/%3E%3Cpath d=%22M20 90c0-18 13-30 30-30s30 12 30 30%22 fill=%22%23555%22/%3E%3C/svg%3E';
 
   // Resolve a CDN image URL for an outfit entry via Roblox's thumbnail API
-  // (mirrored on roproxy to avoid CORS from github.io).
+  // (mirrored on roproxy to avoid CORS from github.io). Returns null for
+  // entries we have no metadata for (kind="unknown" or id=0) so the tile
+  // can fall back to its placeholder with the model name front and center.
   async function resolveThumbnail(o) {
+    if (!o.id || o.kind === 'unknown') return null;
     const key = `${o.kind}:${o.id}`;
     if (thumbCache.has(key)) return thumbCache.get(key);
     if (thumbFetching.has(key)) return thumbFetching.get(key);
@@ -1464,7 +1485,11 @@
       const tile = document.createElement('div');
       tile.className = 'ig-tile';
       tile.dataset.instanceId = o.instanceId;
-      tile.title = `${o.name} (${o.kind} #${o.id})`;
+      const isUnknown = (o.kind === 'unknown' || !o.id);
+      tile.title = isUnknown
+        ? `${o.name} (no FitTok metadata)`
+        : `${o.name} (${o.kind} #${o.id})`;
+      if (isUnknown) tile.classList.add('ig-tile-unknown');
 
       const img = document.createElement('img');
       img.alt = o.name || '';
@@ -1472,8 +1497,17 @@
       img.src = PLACEHOLDER_IMG;
       tile.appendChild(img);
 
-      // Resolve real CDN URL asynchronously
-      resolveThumbnail(o).then(url => { if (url && img.isConnected) img.src = url; });
+      // For known kind+id, swap in the real CDN thumbnail when it resolves
+      if (!isUnknown) {
+        resolveThumbnail(o).then(url => { if (url && img.isConnected) img.src = url; });
+      } else {
+        // Unknown mannequins (pre-existing models or manually-added ones)
+        // get a large name label centered on the placeholder
+        const nameOverlay = document.createElement('div');
+        nameOverlay.className = 'ig-tile-name-large';
+        nameOverlay.textContent = o.name || '?';
+        tile.appendChild(nameOverlay);
+      }
 
       const rig = document.createElement('div');
       rig.className = 'ig-tile-rig';
